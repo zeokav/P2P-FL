@@ -1,0 +1,57 @@
+version: '3'
+services:
+  node_1:
+    image: "p2p-fl:latest"
+    ports:
+      - "6000:8000"
+    volumes:
+      - ./demo:/home/demo
+      - ./data:/home/data
+    environment:
+      - NODE_ID=1
+      - GROUP_ID=1
+
+
+  node_2:
+    image: "p2p-fl:latest"
+    ports:
+      - "6001:8000"
+    volumes:
+      - ./demo:/home/demo
+      - ./data:/home/data
+    environment:
+      - NODE_ID=2
+      - GROUP_ID=1
+
+  node_3:
+    image: "p2p-fl:latest"
+    ports:
+      - "6002:8000"
+    volumes:
+      - ./demo:/home/demo
+      - ./data:/home/data
+    environment:
+      - NODE_ID=3
+      - GROUP_ID=1
+
+  node_4:
+    image: "p2p-fl:latest"
+    ports:
+      - "6003:8000"
+    volumes:
+      - ./demo:/home/demo
+      - ./data:/home/data
+    environment:
+      - NODE_ID=4
+      - GROUP_ID=1
+
+  node_5:
+    image: "p2p-fl:latest"
+    ports:
+      - "6004:8000"
+    volumes:
+      - ./demo:/home/demo
+      - ./data:/home/data
+    environment:
+      - NODE_ID=5
+      - GROUP_ID=1
