@@ -1,0 +1,30 @@
+{
+  "name": "d3-directed-graph",
+  "version": "0.0.0",
+  "description": "Simple graph with nodes and edges",
+  "main": "index.html",
+  "scripts": {
+    "start": "webpack-dev-server --open --inline --host 0.0.0.0 --port 9085",
+    "build": "webpack"
+  },
+  "author": "dag.rende@find-out.se",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:dagrende/d3-directed-graph.git"
+  },
+  "devDependencies": {
+    "babel-core": "^6.25.0",
+    "babel-loader": "^7.1.0",
+    "babel-preset-es2015": "^6.24.1",
+    "webpack": "^3.0.0",
+    "webpack-dev-server": "^2.5.0"
+  },
+  "dependencies": {
+    "d3-context-menu": "^0.1.2",
+    "d3-force": "^1.0.6",
+    "d3-request": "^1.0.5",
+    "d3-selection": "^1.1.0",
+    "d3-selection-multi": "^1.0.1",
+    "lodash": "^4.6.1"
+  }
+}

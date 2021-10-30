@@ -1,0 +1,77 @@
+{
+    "nodes": [
+	{"id": "A", "group": 1, "label": "9004", "level":1},
+	{"id": "B", "group": 1, "label": "9005", "level":1},
+	{"id": "C", "group": 1, "label": "9006", "level":1},
+	{"id": "D", "group": 1, "label": "9007", "level":1},
+	{"id": "E", "group": 1, "label": "9008", "level":1},
+	{"id": "F", "group": 2, "label": "9009", "level":1},
+
+	{"id": "A2", "group": 2, "label": "9010", "level":3},
+	{"id": "B2", "group": 2, "label": "9011", "level":3},
+	{"id": "C2", "group": 2, "label": "9012", "level":3},
+	{"id": "D2", "group": 2, "label": "9013", "level":3},
+	{"id": "E2", "group": 2, "label": "9014", "level":3},
+
+	{"id": "A3", "group": 3, "label": "9015", "level":3},
+	{"id": "B3", "group": 3, "label": "9016", "level":3},
+	{"id": "C3", "group": 3, "label": "9017", "level":3},
+	{"id": "D3", "group": 3, "label": "9018", "level":3},
+	{"id": "E3", "group": 3, "label": "9019", "level":3},
+
+	{"id": "A4", "group": 4, "label": "9020", "level":3},
+	{"id": "B4", "group": 4, "label": "9021", "level":3},
+	{"id": "C4", "group": 4, "label": "9022", "level":3},
+	{"id": "D4", "group": 4, "label": "9023", "level":3},
+	{"id": "E4", "group": 4, "label": "9024", "level":3},
+
+	{"id": "A5", "group": 5, "label": "9025", "level":3},
+	{"id": "B5", "group": 5, "label": "9026", "level":3},
+	{"id": "C5", "group": 5, "label": "9027", "level":3},
+	{"id": "D5", "group": 5, "label": "9028", "level":3},
+	{"id": "E5", "group": 5, "label": "9029", "level":3},
+
+	{"id": "A6", "group": 6, "label": "9030", "level":3},
+	{"id": "B6", "group": 6, "label": "9031", "level":3},
+	{"id": "C6", "group": 6, "label": "9032", "level":3},
+	{"id": "D6", "group": 6, "label": "9033", "level":3},
+	{"id": "E6", "group": 6, "label": "9034", "level":3}
+    ],
+    "links": [
+	{"source": "B", "target": "A", "strength": 1.7},
+	{"source": "C", "target": "A", "strength": 1.7},
+	{"source": "D", "target": "A", "strength": 1.7},
+	{"source": "E", "target": "A", "strength": 1.7},
+	{"source": "F", "target": "A", "strength": 1.7},
+
+	{"source": "A2", "target": "F", "strength": 1.7},
+	{"source": "B2", "target": "F", "strength": 1.7},
+	{"source": "C2", "target": "F", "strength": 1.7},
+	{"source": "D2", "target": "F", "strength": 1.7},
+	{"source": "E2", "target": "F", "strength": 1.7},
+
+	{"source": "A3", "target": "E", "strength": 1.7},
+	{"source": "B3", "target": "E", "strength": 1.7},
+	{"source": "C3", "target": "E", "strength": 1.7},
+	{"source": "D3", "target": "E", "strength": 1.7},
+	{"source": "E3", "target": "E", "strength": 1.7},
+
+	{"source": "A4", "target": "D", "strength": 1.7},
+	{"source": "B4", "target": "D", "strength": 1.7},
+	{"source": "C4", "target": "D", "strength": 1.7},
+	{"source": "D4", "target": "D", "strength": 1.7},
+	{"source": "E4", "target": "D", "strength": 1.7},
+
+	{"source": "A5", "target": "C", "strength": 1.7},
+	{"source": "B5", "target": "C", "strength": 1.7},
+	{"source": "C5", "target": "C", "strength": 1.7},
+	{"source": "D5", "target": "C", "strength": 1.7},
+	{"source": "E5", "target": "C", "strength": 1.7},
+
+	{"source": "A6", "target": "B", "strength": 1.7},
+	{"source": "B6", "target": "B", "strength": 1.7},
+	{"source": "C6", "target": "B", "strength": 1.7},
+	{"source": "D6", "target": "B", "strength": 1.7},
+	{"source": "E6", "target": "B", "strength": 1.7}
+    ]
+}
