@@ -1,0 +1,21 @@
+listening on 127.0.0.1:9004
+client wake_up: 
+client ready for training
+client_ready out
+client wake_up: 
+client ready for training
+client_ready out
+client ready for training
+start : 2021-09-25 21:26:47.929645
+### Round 0###
+request updates to ['08f4a2ff-c030-4139-9123-e3a1725238a6']
+handle client_update08f4a2ff-c030-4139-9123-e3a1725238a6
+handle client_update01bc80f7-38d1-43e2-a493-5519913c5d83
+aggr_train_loss2.2127532958984375
+aggr_train_accuracy0.22124999761581418
+aggr_valid_loss2.215658187866211
+aggr_valid_accuracy0.2199999988079071
+### Round 1###
+request updates to ['01bc80f7-38d1-43e2-a493-5519913c5d83']
+aggr_train_loss0
+aggr_train_accuracy0

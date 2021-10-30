@@ -1,7 +1,7 @@
 import os
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
-import tensorflow_federated as tff
+#import tensorflow_federated as tff
 
 
 class Serv(BaseHTTPRequestHandler):
@@ -18,7 +18,7 @@ class Serv(BaseHTTPRequestHandler):
         self.wfile.write(bytes(file_to_open, 'utf-8'))
 
 
-print(tff.federated_computation(lambda: 'TFF initialized')())
+#print(tff.federated_computation(lambda: 'TFF initialized')())
 print("Starting server up on node: {}".format(os.getenv("NODE_ID")))
 
 httpd = HTTPServer(('localhost', 8080), Serv)
