@@ -21,6 +21,28 @@ Execute `./run.sh`. This will:
 - Create entries in the IP table to interface with the created containers.
 - Run the image as 5 different containers and these will be externally visible.
 
+#Accessing the Docker
+Once the docker is created, follow these steps to access any container in the docker.
+- sudo docker container ls - lists the containers with their ids in the docker
+- sudo docker exec -it container_id bash
+You will have access to the container now. The source code is present in /home/work.
+
+Running Centralized Federated Learning Example (single docker node)- 
+
+Run server
+Go to home/work/cmd/flat directory
+python3 fl_server.py 127.0.0.1 9004
+
+Run client 1
+Open a new terminal and access the same docker using sudo docker exec -it container_id bash (make sure you give the same container_id as the server)
+Go to home/work/cmd/flat directory
+python3 fl_client.py 127.0.0.1 9005 127.0.0.1:9004
+
+Run client 2
+Open a new terminal and access the same docker using sudo docker exec -it container_id bash (make sure you give the same container_id as the server and client1)
+Go to home/work/cmd/flat directory
+python3 fl_client.py 127.0.0.1 9006 127.0.0.1:9004
+
 ## Repo Layout
 - /src: This will contain the learning and peer-to-peer code. 
 - /demo: This will contain an inference python file which will load the combined model, run it on files in /in/{nodeId}, save results in /out/{nodeId}
