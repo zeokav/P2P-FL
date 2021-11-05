@@ -30,17 +30,17 @@ You will have access to the container now. The source code is present in /home/w
 Running Centralized Federated Learning Example (single docker node)- 
 
 Run server
-Go to home/work/cmd/flat directory
+Go to home/work/p2plib/cmd/flat directory
 python3 fl_server.py 127.0.0.1 9004
 
 Run client 1
 Open a new terminal and access the same docker using sudo docker exec -it container_id bash (make sure you give the same container_id as the server)
-Go to home/work/cmd/flat directory
+Go to home/work/p2plib/cmd/flat directory
 python3 fl_client.py 127.0.0.1 9005 127.0.0.1:9004
 
 Run client 2
 Open a new terminal and access the same docker using sudo docker exec -it container_id bash (make sure you give the same container_id as the server and client1)
-Go to home/work/cmd/flat directory
+Go to home/work/p2plib/cmd/flat directory
 python3 fl_client.py 127.0.0.1 9006 127.0.0.1:9004
 
 ## Repo Layout
