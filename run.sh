@@ -1,5 +1,5 @@
 echo "Building image..."
-sudo docker build . -t p2p-fl --no-cache
+sudo docker build . -t p2p-fl
 
 ports=( 6000 6001 6002 6003 6004 )
 
