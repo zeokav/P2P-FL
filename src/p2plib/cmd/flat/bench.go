@@ -338,7 +338,7 @@ func bootstrap(addr string) {
 
 // discover uses Kademlia to discover new peers from nodes we already are aware of.
 func discover(overlay *kademlia.Protocol) {
-ids := overlay.Discover()
+ids := overlay.DiscoverRandom()
 
 	 var str []string
 	 for _, id := range ids {
