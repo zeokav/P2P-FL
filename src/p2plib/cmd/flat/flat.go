@@ -38,6 +38,7 @@ const (
 	OP_INIT                      = 0x05
 	OP_REQUEST_UPDATE            = 0x06
 	OP_STOP_AND_EVAL             = 0x07
+	OP_CLIENT_EVICTED            = 0x08
       )
 
 type ops struct {
@@ -53,6 +54,9 @@ type ops struct {
 	on_requestupdate C.convert
 	on_requestupdatefw C.convert
 	on_stopandeval C.convert
+
+	// Mod
+	on_clientevict C.convert
 }
 
 var (
@@ -221,6 +225,7 @@ func init_p2p(host string, port int){
 		},
                 OnPeerEvicted: func(id p2plib.ID) {
 		   fmt.Printf("Forgotten a peer %s(%s).\n", id.Address, id.ID.String()[:printedLength])
+            C.call_c_func(callbacks.on_clientevict, nil )
 	        },
 	}
 
@@ -335,6 +340,11 @@ func handle(ctx p2plib.HandlerContext) error {
 	C.call_c_func(callbacks.on_stopandeval, (*C.char)(ptr) )
     }
 
+
+    if msg.opcode == OP_CLIENT_EVICTED {
+    C.call_c_func(callbacks.on_clientevict, (*C.char)(ptr) )
+    }
+
     return nil
 }
 
@@ -364,7 +374,7 @@ func bootstrap(addr string) {
 
 // discover uses Kademlia to discover new peers from nodes we already are aware of.
 func discover(overlay *kademlia.Protocol) {
-ids := overlay.Discover()
+ids := overlay.DiscoverRandom()
 
 	 var str []string
 	 for _, id := range ids {
@@ -487,6 +497,11 @@ func Register_callback(name *C.char, fn C.convert) {
     if C.GoString(name) == "on_stop_and_eval" {
 	fmt.Printf("on_stop_and_eval registered\n")
 	    callbacks.on_stopandeval = fn
+    }
+
+    if C.GoString(name) == "on_clientevict" {
+        fmt.Printf("on_clientevict registered\n")
+        callbacks.on_clientevict = fn
     }
 }
 
