@@ -39,6 +39,8 @@ const (
 	OP_REQUEST_UPDATE            = 0x06
 	OP_STOP_AND_EVAL             = 0x07
 	OP_CLIENT_EVICTED            = 0x08
+	OP_SELF_UP                   = 0x09
+	OP_CLIENT_LIST_UPDATE        = 0x0a
       )
 
 type ops struct {
@@ -57,6 +59,8 @@ type ops struct {
 
 	// Mod
 	on_clientevict C.convert
+	on_self_up C.convert
+	on_client_list_update C.convert
 }
 
 var (
@@ -245,6 +249,11 @@ func init_p2p(host string, port int){
 	// Print out the nodes ID and a help message comprised of commands.
 	help(node)
 
+
+	evIdStr := []byte(node.ID().ID.String()[:printedLength])
+    ptr := unsafe.Pointer(&evIdStr[0])
+    C.call_c_func(callbacks.on_self_up, (*C.char)(ptr) )
+
 	nodeitem := Node{Id: node.ID().Address, Group: 1, Label: node.ID().Address, Level:2}
         nodes = append(nodes,nodeitem)
 
@@ -344,8 +353,8 @@ func handle(ctx p2plib.HandlerContext) error {
     }
 
 
-    if msg.opcode == OP_CLIENT_EVICTED {
-    C.call_c_func(callbacks.on_clientevict, (*C.char)(ptr) )
+    if msg.opcode == OP_CLIENT_LIST_UPDATE {
+    C.call_c_func(callbacks.on_client_list_update, (*C.char)(ptr) )
     }
 
     return nil
@@ -505,6 +514,14 @@ func Register_callback(name *C.char, fn C.convert) {
     if C.GoString(name) == "on_clientevict" {
         fmt.Printf("on_clientevict registered\n")
         callbacks.on_clientevict = fn
+    }
+    if C.GoString(name) == "on_self_up" {
+        fmt.Printf("on_self_up registered\n")
+        callbacks.on_self_up = fn
+    }
+    if C.GoString(name) == "on_client_list_update" {
+        fmt.Printf("on_client_list_update registered\n")
+        callbacks.on_client_list_update = fn
     }
 }
 
