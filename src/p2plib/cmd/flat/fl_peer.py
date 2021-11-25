@@ -65,8 +65,9 @@ class FLPeer:
             print("Got wake up!")
             print(data)
 
-        def handle_client_evict():
-            print("Client evicted")
+        def handle_client_evict(data):
+            print("Client evicted: ")
+            print(data)
 
         global on_init_cb
         on_init_cb = FUNC(handle_on_init)

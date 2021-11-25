@@ -1,3 +1,5 @@
+#!/bin/bash
+
 echo "Building image..."
 sudo docker build . -t p2p-fl
 

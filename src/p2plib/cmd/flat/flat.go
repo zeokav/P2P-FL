@@ -223,10 +223,13 @@ func init_p2p(host string, port int){
 		    link := Link{Source: node.ID().Address, Target: id.Address, Strength: 1}
 		    links = append(links,link)
 		},
-                OnPeerEvicted: func(id p2plib.ID) {
+		OnPeerEvicted: func(id p2plib.ID) {
 		   fmt.Printf("Forgotten a peer %s(%s).\n", id.Address, id.ID.String()[:printedLength])
-            C.call_c_func(callbacks.on_clientevict, nil )
-	        },
+		   evIdStr := []byte(id.ID.String()[:printedLength])
+		   ptr := unsafe.Pointer(&evIdStr[0])
+
+		   C.call_c_func(callbacks.on_clientevict, (*C.char)(ptr) )
+        },
 	}
 
         overlay = kademlia.New(kademlia.WithProtocolEvents(events),
