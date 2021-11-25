@@ -1,11 +1,9 @@
-import random
-import json
 import gc
 import sys
+import threading
 import time
 import datetime
 import logging
-import uuid
 
 from ctypes import cdll
 import ctypes
@@ -29,28 +27,40 @@ OP_INIT = 0x05
 OP_REQUEST_UPDATE = 0x06
 OP_STOP_AND_EVAL = 0x07
 OP_CLIENT_EVICTED = 0x08
+OP_SELF_UP = 0x09
+OP_CLIENT_LIST_UPDATE = 0x0a
 
 on_recv_cb = None
 on_init_cb = None
 on_wakeup_cb = None
 on_client_evict_cb = None
+on_self_up_cb = None
+on_client_list_update_cb = None
 
 
 class FLPeer:
     def __init__(self, host, port, bootstrap_address=None):
-        self.ready_client_sids = []
+        self.all_ids = set()
+        self.cid = None
+        self.shut_down = False
 
         self.lib = cdll.LoadLibrary('./libp2p.so')
         self.lib.Init_p2p.restype = ctypes.c_char_p
         self.lib.Write.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_byte]
         self.bootstrap_address = bootstrap_address
 
-        self.cid = uuid.uuid4()
-
         self.host = host
         self.port = port
 
         self.register_handles()
+
+        self.stat_printer = threading.Thread(target=self.print_stats)
+        self.stat_printer.start()
+
+    def print_stats(self):
+        while not self.shut_down:
+            print("\n[{}]\n\tPeer list: {}".format(datetime.datetime.now(), self.all_ids))
+            time.sleep(5)
 
     def register_handles(self):
         def on_recv(src):
@@ -62,12 +72,23 @@ class FLPeer:
             print("Init received :)")
 
         def handle_wake_up(data):
-            print("Got wake up!")
-            print(data)
+            parsed_data = pickle_string_to_obj(data)
+            self.all_ids.add(parsed_data['id'])
+
+            picked_data = obj_to_pickle_string(self.all_ids)
+            self.lib.Write(picked_data, sys.getsizeof(picked_data), OP_CLIENT_LIST_UPDATE)
 
         def handle_client_evict(data):
-            print("Client evicted: ")
-            print(data)
+            evicted_peer = data.decode("utf-8")[:8]
+            self.all_ids.remove(evicted_peer)
+
+        def handle_self_up(data):
+            self.cid = data.decode("utf-8")
+            self.all_ids.add(self.cid)
+
+        def handle_client_list_update(data):
+            parsed_data = pickle_string_to_obj(data)
+            self.all_ids = self.all_ids.union(parsed_data)
 
         global on_init_cb
         on_init_cb = FUNC(handle_on_init)
@@ -84,6 +105,14 @@ class FLPeer:
         global on_client_evict_cb
         on_client_evict_cb = FUNC(handle_client_evict)
         self.lib.Register_callback("on_clientevict".encode("utf-8"), on_client_evict_cb)
+
+        global on_self_up_cb
+        on_self_up_cb = FUNC(handle_self_up)
+        self.lib.Register_callback("on_self_up".encode("utf-8"), on_self_up_cb)
+
+        global on_client_list_update_cb
+        on_client_list_update_cb = FUNC(handle_client_list_update)
+        self.lib.Register_callback("on_client_list_update".encode("utf-8"), on_client_list_update_cb)
 
         # global on_client_ready
         # on_client_ready = FUNC(handle_client_ready)
@@ -102,9 +131,9 @@ class FLPeer:
 
     def join_existing_network(self):
         self.lib.Bootstrapping(self.bootstrap_address.encode('utf-8'))
-        print("Joined P2P, sending client wake up")
         data = {
-            'opcode': 'client_wake_up'
+            'opcode': 'client_wake_up',
+            'id': self.cid
         }
         sdata = obj_to_pickle_string(data)
         self.lib.Write(sdata, sys.getsizeof(sdata), OP_CLIENT_WAKE_UP)
@@ -114,6 +143,7 @@ class FLPeer:
         if self.bootstrap_address:
             self.join_existing_network()
 
+        print("\n===============================================================\n")
         self.lib.Input()
 
 
