@@ -16,7 +16,7 @@ RUN mkdir -p /home/work
 COPY /src /home/work
 
 # Set up entrypoint and run
-WORKDIR /home/work
+WORKDIR /home/work/p2plib/cmd/flat
 COPY ./entrypoint.sh /home/entrypoint.sh
 RUN chmod +x /home/entrypoint.sh
 ENTRYPOINT /home/entrypoint.sh
