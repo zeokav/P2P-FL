@@ -106,8 +106,6 @@ class GlobalModel(object):
             "train_accuracy": self.train_accuracies,
             "valid_accuracy": self.valid_accuracies
         }
-        
-
 class GlobalModel_MNIST_CNN(GlobalModel):
     def __init__(self):
         super(GlobalModel_MNIST_CNN, self).__init__()
@@ -135,6 +133,53 @@ class GlobalModel_MNIST_CNN(GlobalModel):
                       metrics=['accuracy'])
         return model
 
+class GlobalModel_CIFAR10_initial(GlobalModel):
+    def __init__(self):
+        super(GlobalModel_CIFAR10_initial, self).__init__()
+
+    def build_model(self):
+        # ~5MB worth of parameters
+        from keras.models import Sequential
+        from keras.layers import Dense, Dropout, Flatten
+        from keras.layers import Conv2D, MaxPooling2D
+        """
+        model = Sequential()
+        model.add(Conv2D(32, kernel_size=(3, 3),
+                          activation='relu',
+                          input_shape=(32, 32, 3)))
+        model.add(Conv2D(64, (3, 3), activation='relu'))
+        model.add(MaxPooling2D(pool_size=(2, 2)))
+        model.add(Dropout(0.25))
+        model.add(Flatten())
+        model.add(Dense(128, activation='relu'))
+        model.add(Dropout(0.5))
+        model.add(Dense(10, activation='softmax'))
+        
+        """
+        model = Sequential()
+        model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))
+        model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+        model.add(MaxPooling2D((2, 2)))
+        model.add(Dropout(0.2))
+        model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+        model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+        model.add(MaxPooling2D((2, 2)))
+        model.add(Dropout(0.2))
+        model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+        model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+        model.add(MaxPooling2D((2, 2)))
+        model.add(Dropout(0.2))
+        model.add(Flatten())
+        model.add(Dense(128, activation='relu', kernel_initializer='he_uniform'))
+        model.add(Dropout(0.2))
+        model.add(Dense(10, activation='softmax'))
+        print(model)
+        # """
+        import tensorflow.keras as keras
+        model.compile(loss=keras.losses.categorical_crossentropy,
+                      optimizer=keras.optimizers.Adadelta(),
+                      metrics=['accuracy'])
+        return model
         
 ######## Flask server with Socket IO ########
 
@@ -265,6 +310,7 @@ class FLServer(object):
             #   valid_accuracy?
 
             # discard outdated update
+            print('round_number', self.current_round, data['round_number'])
             if data['round_number'] == self.current_round:
                 self.current_round_client_updates += [data]
                 self.current_round_client_updates[-1]['weights'] = pickle_string_to_obj(data['weights'])
@@ -422,7 +468,7 @@ def pickle_string_to_obj(s):
 
 if __name__ == '__main__':
     #server = FLServer(GlobalModel_MNIST_CNN, "127.0.0.1", 9004)
-    server = FLServer(GlobalModel_MNIST_CNN, sys.argv[1], sys.argv[2])
+    server = FLServer(GlobalModel_CIFAR10_initial, sys.argv[1], sys.argv[2])
     filehandle = open("helloworld.txt", "w")
     filehandle.write("listening on " + str(sys.argv[1]) + ":" + str(sys.argv[2]) + "\n");
     filehandle.close()

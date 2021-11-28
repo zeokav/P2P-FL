@@ -80,6 +80,7 @@ class LocalModel(object):
     # return final weights, train loss, train accuracy
     def train_one_round(self):
         import tensorflow.keras as keras
+        print("train_one_round")
         self.model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.Adadelta(),
               metrics=['accuracy'])
@@ -265,5 +266,5 @@ if __name__ == "__main__":
     filehandle.close()
     import datasource
     #client = FederatedClient("127.0.0.1", 9005, "127.0.0.1:9004", datasource.Mnist)
-    client = FederatedClient(sys.argv[1], sys.argv[2], sys.argv[3], datasource.Mnist)
+    client = FederatedClient(sys.argv[1], sys.argv[2], sys.argv[3], datasource.Cifar10)
     client.lib.Input()
