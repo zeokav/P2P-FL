@@ -1,56 +1,87 @@
 version: '3'
+networks:
+  commnet:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
 services:
   node_1:
     image: "p2p-fl:latest"
-    ports:
-      - "6000:8000"
     volumes:
       - ./demo:/home/demo
       - ./data:/home/data
     environment:
       - NODE_ID=1
       - GROUP_ID=1
+      - SELF_IP=172.20.0.2
+    networks:
+      commnet:
+        ipv4_address: 172.20.0.2
 
   node_2:
     image: "p2p-fl:latest"
-    ports:
-      - "6001:8000"
     volumes:
       - ./demo:/home/demo
       - ./data:/home/data
     environment:
       - NODE_ID=2
       - GROUP_ID=1
+      - SELF_IP=172.20.0.3
+    networks:
+      commnet:
+        ipv4_address: 172.20.0.3
 
   node_3:
     image: "p2p-fl:latest"
-    ports:
-      - "6002:8000"
     volumes:
       - ./demo:/home/demo
       - ./data:/home/data
     environment:
       - NODE_ID=3
       - GROUP_ID=1
+      - SELF_IP=172.20.0.4
+    networks:
+      commnet:
+        ipv4_address: 172.20.0.4
 
   node_4:
     image: "p2p-fl:latest"
-    ports:
-      - "6003:8000"
     volumes:
       - ./demo:/home/demo
       - ./data:/home/data
     environment:
       - NODE_ID=4
       - GROUP_ID=1
+      - SELF_IP=172.20.0.5
+    networks:
+      commnet:
+        ipv4_address: 172.20.0.5
+
 
   node_5:
     image: "p2p-fl:latest"
-    ports:
-      - "6004:8000"
+
     volumes:
       - ./demo:/home/demo
       - ./data:/home/data
     environment:
       - NODE_ID=5
-      - GROUP_ID=1
+      - GROUP_ID=2
+      - SELF_IP=172.20.0.6
+    networks:
+      commnet:
+        ipv4_address: 172.20.0.6
+
+  node_6:
+    image: "p2p-fl:latest"
+
+    volumes:
+      - ./demo:/home/demo
+      - ./data:/home/data
+    environment:
+      - NODE_ID=6
+      - GROUP_ID=2
+      - SELF_IP=172.20.0.7
+    networks:
+      commnet:
+        ipv4_address: 172.20.0.7
