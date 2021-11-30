@@ -170,8 +170,7 @@ class FLPeer:
             if self_idx % (4 ** (tree_round - 1)) != 0:
                 print("Not participating in round {}".format(tree_round))
 
-            # self.model.get_weights()
-            weights_data = {}
+            weights_data = self.global_model.get_weights()
             metadata = {
                 "mode": "send_to_leader",
                 "target_bucket_peer_id": self.sorted_ids[self_idx // (4 ** tree_round)],
@@ -315,6 +314,9 @@ class GlobalModel(object):
 
     def build_model(self):
         raise NotImplementedError()
+
+    def get_weights(self):
+        return self.current_weights
 
     # client_updates = [(w, n)..]
     def update_weights(self, client_weights, client_sizes):

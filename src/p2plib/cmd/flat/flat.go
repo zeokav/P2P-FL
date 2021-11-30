@@ -74,6 +74,7 @@ var (
         nodes []Node
         links []Link
 	f *os.File
+	evIdStr []byte
 )
 
 //for printing the network in d3
@@ -229,7 +230,7 @@ func init_p2p(host string, port int){
 		},
 		OnPeerEvicted: func(id p2plib.ID) {
 		   fmt.Printf("Forgotten a peer %s(%s).\n", id.Address, id.ID.String()[:printedLength])
-		   evIdStr := []byte(id.ID.String()[:printedLength])
+		   evIdStr = []byte(id.ID.String()[:printedLength])
 		   ptr := unsafe.Pointer(&evIdStr[0])
 
 		   C.call_c_func(callbacks.on_clientevict, (*C.char)(ptr) )
@@ -250,7 +251,7 @@ func init_p2p(host string, port int){
 	help(node)
 
 
-	evIdStr := []byte(node.ID().ID.String()[:printedLength])
+	evIdStr = []byte(node.ID().ID.String()[:printedLength])
     ptr := unsafe.Pointer(&evIdStr[0])
     C.call_c_func(callbacks.on_self_up, (*C.char)(ptr) )
 
