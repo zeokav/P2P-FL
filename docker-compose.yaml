@@ -4,6 +4,7 @@ networks:
     ipam:
       config:
         - subnet: 172.20.0.0/24
+
 services:
   node_1:
     image: "p2p-fl:latest"
@@ -19,6 +20,11 @@ services:
     networks:
       commnet:
         ipv4_address: 172.20.0.2
+    restart: on-failure
+#    deploy:
+#      resources:
+#        limits:
+#          memory: 1G
 
   node_2:
     image: "p2p-fl:latest"
@@ -32,7 +38,14 @@ services:
     networks:
       commnet:
         ipv4_address: 172.20.0.3
-
+    restart: on-failure
+    depends_on:
+      - node_1
+#    deploy:
+#      resources:
+#        limits:
+#          memory: 1G
+#
   node_3:
     image: "p2p-fl:latest"
     volumes:
@@ -45,6 +58,13 @@ services:
     networks:
       commnet:
         ipv4_address: 172.20.0.4
+    restart: on-failure
+    depends_on:
+      - node_2
+#    deploy:
+#      resources:
+#        limits:
+#          memory: 1G
 
   node_4:
     image: "p2p-fl:latest"
@@ -58,6 +78,13 @@ services:
     networks:
       commnet:
         ipv4_address: 172.20.0.5
+    restart: on-failure
+    depends_on:
+      - node_3
+#    deploy:
+#      resources:
+#        limits:
+#          memory: 1G
 
 
   node_5:
@@ -73,6 +100,13 @@ services:
     networks:
       commnet:
         ipv4_address: 172.20.0.6
+    restart: on-failure
+    depends_on:
+      - node_4
+#    deploy:
+#      resources:
+#        limits:
+#          memory: 1G
 
   node_6:
     image: "p2p-fl:latest"
@@ -87,3 +121,10 @@ services:
     networks:
       commnet:
         ipv4_address: 172.20.0.7
+    restart: on-failure
+    depends_on:
+      - node_5
+#    deploy:
+#      resources:
+#        limits:
+#          memory: 1G

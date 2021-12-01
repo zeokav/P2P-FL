@@ -10,8 +10,12 @@ from ctypes import cdll
 import ctypes
 from helper import *
 
-gc.disable()
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Flatten
+from keras.layers import Conv2D, MaxPooling2D
+import tensorflow.keras as keras
 
+# gc.disable()
 default_logger = logging.getLogger('tunnel.logger')
 default_logger.disabled = False
 default_logger.setLevel(logging.CRITICAL)
@@ -63,6 +67,7 @@ class FLPeer:
         self.shut_down = False
         self.is_training = False
         self.collected_weights = []
+        self.round_counter = {}
 
         self.lib = cdll.LoadLibrary('./libp2p.so')
         self.lib.Init_p2p.restype = ctypes.c_char_p
@@ -80,12 +85,10 @@ class FLPeer:
         self.p2p_trainer = threading.Thread(target=self.run_trainer)
         self.p2p_trainer.start()
 
-
         self.global_model = global_model()
         import uuid
         self.model_id = str(uuid.uuid4())
         self.init_model_config()
-
 
         self.local_training = threading.Thread(target=self.run_local_training)
         self.local_training.start()
@@ -142,7 +145,7 @@ class FLPeer:
 
                 self.is_training = True
 
-            time.sleep(5)
+            time.sleep(30)
 
     def print_stats(self):
         while not self.shut_down:
@@ -156,25 +159,27 @@ class FLPeer:
             time.sleep(5)
 
     def update_for_round(self, tree_round):
-        print("Update for round: ", tree_round)
         self_idx = self.sorted_ids.index(self.cid)
 
         round_parent_indices = [index for index in range(len(self.all_ids)) if index % (4 ** tree_round) == 0]
 
         if self_idx in round_parent_indices:
             # This is the parent, it just waits for other nodes to send their weights
-            print("This is a parent")
+            print("This is a parent, waiting for other nodes to send their data")
             self.is_training = True
 
         else:
             if self_idx % (4 ** (tree_round - 1)) != 0:
                 print("Not participating in round {}".format(tree_round))
+                return
+            else:
+                parent_idx = (self_idx // (4 ** tree_round)) * (4 ** tree_round)
+                print("Self ID: {}, sending weights to parent: {}".format(self_idx, parent_idx))
 
-            # self.model.get_weights()
-            weights_data = {}
+            weights_data = self.global_model.get_weights()
             metadata = {
                 "mode": "send_to_leader",
-                "target_bucket_peer_id": self.sorted_ids[self_idx // (4 ** tree_round)],
+                "target_bucket_peer_id": self.sorted_ids[parent_idx],
                 "weights": weights_data,
                 "round": tree_round
             }
@@ -182,20 +187,59 @@ class FLPeer:
             data_str = obj_to_pickle_string(metadata)
             self.lib.Write(data_str, sys.getsizeof(data_str), OP_CLIENT_UPDATE)
 
-    def process_and_clear(self):
+    def process_and_clear(self, targets, for_round):
         print("{} Processing weight information".format(self.cid))
-        self.is_training = False
-        self.collected_weights = []
 
-        weights_data = {}
+        # self.global_model.
+
+        updated_weights_data = {}
 
         data = {
             "mode": "send_to_children",
-            "targets": ["???"],
-            "weights": weights_data
+            "targets": targets,
+            "round": for_round,
+            "weights": updated_weights_data
         }
+
         data_str = obj_to_pickle_string(data)
         self.lib.Write(data_str, sys.getsizeof(data_str), OP_CLIENT_UPDATE)
+
+        if self.sorted_ids[0] == self.cid:
+            curr_count = self.round_counter.get(for_round, 0)
+            self.round_counter[for_round] = curr_count + min(3, (len(self.sorted_ids) // (4 ** (for_round-1))))
+            self.do_leader_round_completion_check(for_round)
+        else:
+            self.is_training = False
+            self.collected_weights = []
+
+    def do_leader_round_completion_check(self, curr_round):
+        curr_count = self.round_counter.get(curr_round)
+        completion_count = (len(self.sorted_ids) // (4 ** (curr_round - 1))) \
+                           - (len(self.sorted_ids) // (4 ** curr_round)) - 1
+
+        print("Received ack from child for round {}, total required: {}. Round count: {}"
+              .format(curr_round, completion_count, self.round_counter))
+
+        if completion_count <= curr_count:
+            print("Received update ack from all children. ")
+            # There can be more rounds
+            if completion_count != 0:
+                print("Initiating the next round.")
+                metadata = {
+                    "op": "request_update",
+                    "round": curr_round + 1
+                }
+                metadata_str = obj_to_pickle_string(metadata)
+                self.lib.Write(metadata_str,
+                               sys.getsizeof(metadata_str),
+                               OP_REQUEST_UPDATE)
+
+            # We've exhausted all rounds, we can reset the global leader
+            else:
+                print("No more rounds left.")
+                self.is_training = False
+                self.collected_weights = []
+                self.round_counter = {}
 
     def register_handles(self):
         def on_recv(src):
@@ -216,7 +260,11 @@ class FLPeer:
             self.all_ids.remove(evicted_peer)
 
         def handle_self_up(data):
-            self.cid = data.decode("utf-8")[:8]
+            try:
+                self.cid = data.decode("utf-8")[:8]
+            except Exception as e:
+                print("Failed to start node, quitting", e)
+                os.kill(os.getpid(), 9)
             self.sorted_ids = [self.cid]
             self.all_ids.add(self.cid)
 
@@ -235,18 +283,27 @@ class FLPeer:
             if parsed_data.get('mode') == "send_to_leader":
                 if not parsed_data.get('target_bucket_peer_id') == self.cid:
                     return
-                self.collected_weights.append(parsed_data.get('weights', []))
-                expected_weights = len(
-                    self.sorted_ids[self.sorted_ids.index(self.cid)::(4 ** (parsed_data['round'] - 1))]
-                ) - 1
 
-                if len(self.collected_weights) > min(expected_weights, 4):
-                    self.process_and_clear()
+                self.collected_weights.append(parsed_data.get('weights', None))
+
+                self_idx = self.sorted_ids.index(self.cid)
+                targets = self.sorted_ids[self_idx::(4 ** (parsed_data['round'] - 1))]
+                expected_weights = min(len(targets)-1, 3)
+
+                if len(self.collected_weights) >= expected_weights:
+                    self.process_and_clear(targets[self_idx:expected_weights], parsed_data['round'])
 
             elif parsed_data.get('mode') == "send_to_children":
-                # if self.cid not in parsed_data.get('targets', []):
-                print("Ignoring update from parent")
-                return
+                if self.sorted_ids[0] == self.cid:
+                    curr_round = parsed_data['round']
+                    curr_count = self.round_counter.get(curr_round, 0)
+                    self.round_counter[curr_round] = curr_count + 1
+                    self.do_leader_round_completion_check(curr_round)
+
+                if self.cid not in parsed_data.get('targets', []):
+                    return
+                else:
+                    print("Updating model received from parent!")
 
         global on_recv_cb
         on_recv_cb = FUNC(on_recv)
@@ -316,6 +373,9 @@ class GlobalModel(object):
     def build_model(self):
         raise NotImplementedError()
 
+    def get_weights(self):
+        return self.current_weights
+
     # client_updates = [(w, n)..]
     def update_weights(self, client_weights, client_sizes):
         import numpy as np
@@ -371,10 +431,6 @@ class GlobalModel_MNIST_CNN(GlobalModel):
         super(GlobalModel_MNIST_CNN, self).__init__()
 
     def build_model(self):
-        # ~5MB worth of parameters
-        from keras.models import Sequential
-        from keras.layers import Dense, Dropout, Flatten
-        from keras.layers import Conv2D, MaxPooling2D
         model = Sequential()
         model.add(Conv2D(32, kernel_size=(3, 3),
                          activation='relu',
@@ -387,7 +443,6 @@ class GlobalModel_MNIST_CNN(GlobalModel):
         model.add(Dropout(0.5))
         model.add(Dense(10, activation='softmax'))
 
-        import tensorflow.keras as keras
         model.compile(loss=keras.losses.categorical_crossentropy,
                       optimizer=keras.optimizers.Adadelta(),
                       metrics=['accuracy'])
