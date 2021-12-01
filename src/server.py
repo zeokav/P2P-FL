@@ -7,6 +7,7 @@
 
 from flask import Flask
 import os
+import numpy as np
 
 app = Flask(__name__)
 
@@ -22,7 +23,8 @@ def inference():
     data = request.data
     if os.path.exists("model_weights"):
         model = load_data("model_weights")
-        prediction = model.predict(data)
+        image = np.frombuffer(base64.decodebytes(data), dtype=np.float64)
+        prediction = model.predict(image)
         return prediction
 
 @app.route("/node_list", methods = ["GET"])
