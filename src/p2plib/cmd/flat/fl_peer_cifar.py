@@ -467,6 +467,8 @@ class LocalModel(object):
         score = self.model.evaluate(self.x_train, self.y_train, verbose=0)
         print('Train loss:', score[0])
         print('Train accuracy:', score[1])
+
+
         return self.model.get_weights(), score[0], score[1]
 
     def validate(self):
