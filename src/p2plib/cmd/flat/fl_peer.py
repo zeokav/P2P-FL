@@ -219,7 +219,7 @@ class FLPeer:
             "mode": "send_to_children",
             "targets": targets,
             "round": for_round,
-            "weights": self.global_model.current_weights,
+            "weights": self.global_model.current_weights
         }
         self.local_model.set_weights(self.global_model.current_weights)
         data_str = obj_to_pickle_string(data)
