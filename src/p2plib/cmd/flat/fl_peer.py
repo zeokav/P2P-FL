@@ -5,7 +5,7 @@ import time
 import datetime
 import logging
 import os
-
+import json
 from ctypes import cdll
 import ctypes
 from helper import *
@@ -44,9 +44,10 @@ on_client_list_update_cb = None
 on_request_update_cb = None
 on_client_update_cb = None
 
+
 def storeData(fname, data):
     # Its important to use binary mode
-    datafile = open(fname, 'ab')
+    datafile = open(fname, 'wb+')
     # source, destination
     pickle.dump(data, datafile)
     datafile.close()
@@ -66,7 +67,7 @@ class FLPeer:
         self.cid = None
         self.shut_down = False
         self.is_training = False
-        self.collected_weights = []
+        self.current_round_client_updates = []
         self.round_counter = {}
 
         self.lib = cdll.LoadLibrary('./libp2p.so')
@@ -90,8 +91,8 @@ class FLPeer:
         self.model_id = str(uuid.uuid4())
         self.init_model_config()
 
-        self.local_training = threading.Thread(target=self.run_local_training)
-        self.local_training.start()
+        # self.local_training = threading.Thread(target=self.run_local_training)
+        # self.local_training.start()
 
 
     def init_model_config(self):
@@ -122,15 +123,14 @@ class FLPeer:
             )
             storeData("fake_data",fake_data)
             storeData("my_class_distr",my_class_distr)
+            #CreateModelData("model_weights", self.global_model)# Store model here
 
         self.local_model = LocalModel(model_config, fake_data)
 
     def run_local_training(self):
-        while not self.shut_down:
             my_weights, self.train_loss, self.train_accuracy = self.local_model.train_one_round()
             print("\n Train Loss : {}, Train accuracy : {}".format(self.train_loss, self.train_accuracy))
-
-            time.sleep(60)
+            storeData("model_weights", self.local_model)
 
     def run_trainer(self):
         while not self.shut_down:
@@ -144,6 +144,8 @@ class FLPeer:
                 self.lib.Write(metadata_str, sys.getsizeof(metadata_str), OP_REQUEST_UPDATE)
 
                 self.is_training = True
+
+                storeData("node_list", self.sorted_ids)
 
             time.sleep(30)
 
@@ -173,6 +175,7 @@ class FLPeer:
                 print("Not participating in round {}".format(tree_round))
                 return
             else:
+                self.run_local_training()
                 parent_idx = (self_idx // (4 ** tree_round)) * (4 ** tree_round)
                 print("Self ID: {}, sending weights to parent: {}".format(self_idx, parent_idx))
 
@@ -181,7 +184,11 @@ class FLPeer:
                 "mode": "send_to_leader",
                 "target_bucket_peer_id": self.sorted_ids[parent_idx],
                 "weights": weights_data,
-                "round": tree_round
+                "round": tree_round,
+                "train_size": self.local_model.x_train.shape[0],
+                "valid_size": self.local_model.x_valid.shape[0],
+                "train_loss": self.train_loss,
+                "train_accuracy": self.train_accuracy
             }
 
             data_str = obj_to_pickle_string(metadata)
@@ -190,17 +197,31 @@ class FLPeer:
     def process_and_clear(self, targets, for_round):
         print("{} Processing weight information".format(self.cid))
 
-        # self.global_model.
-
-        updated_weights_data = {}
+        self.global_model.update_weights(
+                        [x['weights'] for x in self.current_round_client_updates],
+                        [x['train_size'] for x in self.current_round_client_updates],
+                    )
+        aggr_train_loss, aggr_train_accuracy = self.global_model.aggregate_train_loss_accuracy(
+            [x['train_loss'] for x in self.current_round_client_updates],
+            [x['train_accuracy'] for x in self.current_round_client_updates],
+            [x['train_size'] for x in self.current_round_client_updates],
+            for_round
+        )
+        if 'valid_loss' in self.current_round_client_updates[0]:
+            aggr_valid_loss, aggr_valid_accuracy = self.global_model.aggregate_valid_loss_accuracy(
+                [x['valid_loss'] for x in self.current_round_client_updates],
+                [x['valid_accuracy'] for x in self.current_round_client_updates],
+                [x['valid_size'] for x in self.current_round_client_updates],
+                for_round
+            )
 
         data = {
             "mode": "send_to_children",
             "targets": targets,
             "round": for_round,
-            "weights": updated_weights_data
+            "weights": self.global_model.current_weights
         }
-
+        self.local_model.set_weights(self.global_model.current_weights)
         data_str = obj_to_pickle_string(data)
         self.lib.Write(data_str, sys.getsizeof(data_str), OP_CLIENT_UPDATE)
 
@@ -210,7 +231,7 @@ class FLPeer:
             self.do_leader_round_completion_check(for_round)
         else:
             self.is_training = False
-            self.collected_weights = []
+            self.current_round_client_updates = []
 
     def do_leader_round_completion_check(self, curr_round):
         curr_count = self.round_counter.get(curr_round)
@@ -238,7 +259,7 @@ class FLPeer:
             else:
                 print("No more rounds left.")
                 self.is_training = False
-                self.collected_weights = []
+                self.current_round_client_updates = []
                 self.round_counter = {}
 
     def register_handles(self):
@@ -284,16 +305,16 @@ class FLPeer:
                 if not parsed_data.get('target_bucket_peer_id') == self.cid:
                     return
 
-                self.collected_weights.append(parsed_data.get('weights', None))
+                self.current_round_client_updates.append(parsed_data)
 
                 self_idx = self.sorted_ids.index(self.cid)
                 targets = self.sorted_ids[self_idx::(4 ** (parsed_data['round'] - 1))]
                 expected_weights = min(len(targets)-1, 3)
 
-                if len(self.collected_weights) >= expected_weights:
+                if len(self.current_round_client_updates) >= expected_weights:
                     self.process_and_clear(targets[self_idx:expected_weights], parsed_data['round'])
 
-            elif parsed_data.get('mode') == "send_to_children":
+            elif parsed_data.get('mode') == "send_to_children": 
                 if self.sorted_ids[0] == self.cid:
                     curr_round = parsed_data['round']
                     curr_count = self.round_counter.get(curr_round, 0)
@@ -304,6 +325,10 @@ class FLPeer:
                     return
                 else:
                     print("Updating model received from parent!")
+                    self.global_model.current_weights = parsed_data['weights']
+                    self.local_model.set_weights(parsed_data['weights'])
+                    #CreateModelFile("model_weights", self.global_model)
+
 
         global on_recv_cb
         on_recv_cb = FUNC(on_recv)
@@ -376,7 +401,7 @@ class GlobalModel(object):
     def get_weights(self):
         return self.current_weights
 
-    # client_updates = [(w, n)..]
+    # client_updates = [(   w, n)..]
     def update_weights(self, client_weights, client_sizes):
         import numpy as np
         new_weights = [np.zeros(w.shape) for w in self.current_weights]
@@ -500,6 +525,7 @@ class LocalModel(object):
         score = self.model.evaluate(self.x_train, self.y_train, verbose=0)
         print('Train loss:', score[0])
         print('Train accuracy:', score[1])
+        # Store model here
         return self.model.get_weights(), score[0], score[1]
 
     def validate(self):
