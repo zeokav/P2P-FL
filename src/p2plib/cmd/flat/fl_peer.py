@@ -185,10 +185,10 @@ class FLPeer:
                 "target_bucket_peer_id": self.sorted_ids[parent_idx],
                 "weights": weights_data,
                 "round": tree_round,
-                'train_size': self.local_model.x_train.shape[0],
-                'valid_size': self.local_model.x_valid.shape[0],
-                'train_loss': self.train_loss,
-                'train_accuracy': self.train_accuracy
+                "train_size": self.local_model.x_train.shape[0],
+                "valid_size": self.local_model.x_valid.shape[0],
+                "train_loss": self.train_loss,
+                "train_accuracy": self.train_accuracy
             }
 
             data_str = obj_to_pickle_string(metadata)
