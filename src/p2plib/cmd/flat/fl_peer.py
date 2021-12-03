@@ -63,7 +63,7 @@ class FLPeer:
     def __init__(self, global_model, host, port, bootstrap_address=None):
         self.all_ids = set()
         self.sorted_ids = []
-
+        self.first_time = 1
         self.cid = None
         self.shut_down = False
         self.is_training = False
@@ -81,7 +81,7 @@ class FLPeer:
         self.register_handles()
 
         self.stat_printer = threading.Thread(target=self.print_stats)
-        self.stat_printer.start()
+        #self.stat_printer.start()
 
         self.p2p_trainer = threading.Thread(target=self.run_trainer)
         self.p2p_trainer.start()
@@ -89,46 +89,38 @@ class FLPeer:
         self.global_model = global_model()
         import uuid
         self.model_id = str(uuid.uuid4())
-        self.init_model_config()
-
+        #self.init_model_config()
+        import datasource
+        self.train_loss = None
+        self.train_accuracy = None
+        self.datasource = (datasource.Mnist)()
+        
         # self.local_training = threading.Thread(target=self.run_local_training)
         # self.local_training.start()
 
+    def on_init(self, data):
+            print('on init')
+            model_config = pickle_string_to_obj(data)
+            print('preparing local data based on server model_config')
 
-    def init_model_config(self):
-
-        import datasource
-        self.datasource = (datasource.Mnist)()
-        self.train_loss = None
-        self.train_accuracy = None
-
-        model_config = {
-                        'opcode' : "init",
-                        'model_json': self.global_model.model.to_json(),
-                        'model_id': self.model_id,
-                        'min_train_size': 1200,
-                        'data_split': (0.6, 0.3, 0.1), # train, test, valid
-                        'epoch_per_round': 1,
-                        'batch_size': 10
-                    }
-
-        if os.path.exists("fake_data") and os.path.exists("my_class_distr"):
+            if os.path.exists("fake_data") and os.path.exists("my_class_distr"):
                 fake_data = loadData("fake_data")
                 my_class_distr = loadData("my_class_distr")
-        else:
-            fake_data, my_class_distr = self.datasource.fake_non_iid_data(
-                min_train=model_config['min_train_size'],
-                max_train=FederatedClient.MAX_DATASET_SIZE_KEPT,
-                data_split=model_config['data_split']
-            )
-            storeData("fake_data",fake_data)
-            storeData("my_class_distr",my_class_distr)
-            #CreateModelData("model_weights", self.global_model)# Store model here
+            else:
+                fake_data, my_class_distr = self.datasource.fake_non_iid_data(
+                    min_train=model_config['min_train_size'],
+                    max_train=FederatedClient.MAX_DATASET_SIZE_KEPT,
+                    data_split=model_config['data_split']
+                )
+                storeData("fake_data",fake_data)
+                storeData("my_class_distr",my_class_distr)
 
-        self.local_model = LocalModel(model_config, fake_data)
+            self.local_model = LocalModel(model_config, fake_data)
+
 
     def run_local_training(self):
             my_weights, self.train_loss, self.train_accuracy = self.local_model.train_one_round()
+            self.global_model.model = self.local_model.model
             print("\n Train Loss : {}, Train accuracy : {}".format(self.train_loss, self.train_accuracy))
             storeData("model_weights", self.local_model)
 
@@ -138,16 +130,48 @@ class FLPeer:
                 print("Initializing training on: ", self.cid)
                 metadata = {
                     "op": "request_update",
-                    "round": 1
+                    "round": 1,
+                    'model_json': self.global_model.model.to_json(),
+                    'model_id': self.model_id,
+                    'min_train_size': 1200,
+                    'data_split': (0.6, 0.3, 0.1), # train, test, valid
+                    'epoch_per_round': 1,
+                    'batch_size': 10
                 }
                 metadata_str = obj_to_pickle_string(metadata)
+
+
+                import numpy as np
+                for layer in self.global_model.model.layers:
+                    print("Global Model***************Layer Weight : ", [np.std(x) for x in layer.get_weights()])
+                
+                from keras.models import model_from_json
+                gm_json = self.global_model.model.to_json()
+                gm = model_from_json(gm_json)
+                gm.current_weights = self.global_model.model.current_weights
+                print("*************GlobalModel vs Model From JSON**********")
+                for layer in gm.layers:
+                    print("To & From JSON GM***************Layer Weight : ", [np.std(x) for x in layer.get_weights()])
+
+                #gm_json1 = self.global_model.model.to_json()
+                gm1 = model_from_json(gm_json)
+                gm1.current_weights = self.global_model.model.current_weights
+                print("*************GlobalModel vs Model From JSON**********")
+                for layer in gm1.layers:
+                    print("To & From JSON GM1***************Layer Weight : ", [np.std(x) for x in layer.get_weights()])
+
+
+                self.on_init(metadata_str)
+                for layer in self.local_model.model.layers:
+                    print("Local Model***************Layer Weight : ", [np.std(x) for x in layer.get_weights()])
+
                 self.lib.Write(metadata_str, sys.getsizeof(metadata_str), OP_REQUEST_UPDATE)
 
                 self.is_training = True
 
                 storeData("node_list", self.sorted_ids)
 
-            time.sleep(30)
+            time.sleep(1)
 
     def print_stats(self):
         while not self.shut_down:
@@ -158,11 +182,11 @@ class FLPeer:
                   "\n\tTraining: {}".format(datetime.datetime.now(), self.cid, self.all_ids,
                                             self.sorted_ids.index(self.cid) if self.cid else "",
                                             self.is_training))
-            time.sleep(5)
+            time.sleep(10)
 
     def update_for_round(self, tree_round):
         self_idx = self.sorted_ids.index(self.cid)
-
+	
         round_parent_indices = [index for index in range(len(self.all_ids)) if index % (4 ** tree_round) == 0]
 
         if self_idx in round_parent_indices:
@@ -197,31 +221,33 @@ class FLPeer:
     def process_and_clear(self, targets, for_round):
         print("{} Processing weight information".format(self.cid))
 
-        self.global_model.update_weights(
-                        [x['weights'] for x in self.current_round_client_updates],
-                        [x['train_size'] for x in self.current_round_client_updates],
-                    )
-        aggr_train_loss, aggr_train_accuracy = self.global_model.aggregate_train_loss_accuracy(
-            [x['train_loss'] for x in self.current_round_client_updates],
-            [x['train_accuracy'] for x in self.current_round_client_updates],
-            [x['train_size'] for x in self.current_round_client_updates],
-            for_round
-        )
-        if 'valid_loss' in self.current_round_client_updates[0]:
-            aggr_valid_loss, aggr_valid_accuracy = self.global_model.aggregate_valid_loss_accuracy(
-                [x['valid_loss'] for x in self.current_round_client_updates],
-                [x['valid_accuracy'] for x in self.current_round_client_updates],
-                [x['valid_size'] for x in self.current_round_client_updates],
-                for_round
-            )
+        # self.global_model.update_weights(
+        #                 [x['weights'] for x in self.current_round_client_updates],
+        #                 [x['train_size'] for x in self.current_round_client_updates],
+        #             )
+        # aggr_train_loss, aggr_train_accuracy = self.global_model.aggregate_train_loss_accuracy(
+        #     [x['train_loss'] for x in self.current_round_client_updates],
+        #     [x['train_accuracy'] for x in self.current_round_client_updates],
+        #     [x['train_size'] for x in self.current_round_client_updates],
+        #     for_round
+        # )
+        # if 'valid_loss' in self.current_round_client_updates[0]:
+        #     aggr_valid_loss, aggr_valid_accuracy = self.global_model.aggregate_valid_loss_accuracy(
+        #         [x['valid_loss'] for x in self.current_round_client_updates],
+        #         [x['valid_accuracy'] for x in self.current_round_client_updates],
+        #         [x['valid_size'] for x in self.current_round_client_updates],
+        #         for_round
+        #     )
 
+        # self.local_model.set_weights(self.global_model.current_weights)
+        self.run_local_training()
+        #self.global_model.current_weights = self.local_model.get_weights()
         data = {
             "mode": "send_to_children",
             "targets": targets,
             "round": for_round,
             "weights": self.global_model.current_weights
         }
-        self.local_model.set_weights(self.global_model.current_weights)
         data_str = obj_to_pickle_string(data)
         self.lib.Write(data_str, sys.getsizeof(data_str), OP_CLIENT_UPDATE)
 
@@ -296,6 +322,10 @@ class FLPeer:
 
         def handle_update_request(data):
             parsed_data = pickle_string_to_obj(data)
+            if self.first_time == 1:
+                self.first_time = 0
+                self.on_init(data)
+
             self.update_for_round(parsed_data['round'])
 
         def handle_client_update(data):
@@ -325,8 +355,8 @@ class FLPeer:
                     return
                 else:
                     print("Updating model received from parent!")
-                    self.global_model.current_weights = parsed_data['weights']
-                    self.local_model.set_weights(parsed_data['weights'])
+                    #self.global_model.current_weights = parsed_data['weights']
+                    #self.local_model.set_weights(parsed_data['weights'])
                     #CreateModelFile("model_weights", self.global_model)
 
 
@@ -512,9 +542,13 @@ class LocalModel(object):
     # return final weights, train loss, train accuracy
     def train_one_round(self):
         import tensorflow.keras as keras
+        import numpy as np
         self.model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.Adadelta(),
               metrics=['accuracy'])
+        
+        for layer in self.model.layers:
+            print("During Training***************Layer Weight : ", [np.std(x) for x in layer.get_weights()])
 
         self.model.fit(self.x_train, self.y_train,
                   epochs=self.model_config['epoch_per_round'],

@@ -3,6 +3,7 @@ import keras
 from keras.utils import np_utils
 import random
 from keras.datasets import mnist
+from keras.datasets import cifar10
 from keras import backend as K
 
 class DataSource(object):
