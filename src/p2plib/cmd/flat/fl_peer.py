@@ -95,9 +95,7 @@ class FLPeer:
         self.train_accuracy = None
         self.datasource = (datasource.Mnist)()
         
-        # self.local_training = threading.Thread(target=self.run_local_training)
-        # self.local_training.start()
-
+        
     def on_init(self, data):
             print('on init')
             model_config = pickle_string_to_obj(data)
@@ -117,13 +115,6 @@ class FLPeer:
 
             self.local_model = LocalModel(model_config, fake_data)
 
-
-    def run_local_training(self):
-            my_weights, self.train_loss, self.train_accuracy = self.local_model.train_one_round()
-            self.global_model.model = self.local_model.model
-            print("\n Train Loss : {}, Train accuracy : {}".format(self.train_loss, self.train_accuracy))
-            storeData("model_weights", self.local_model)
-
     def run_trainer(self):
         while not self.shut_down:
             if len(self.all_ids) >= 6 and self.sorted_ids[0] == self.cid and not self.is_training:
@@ -136,35 +127,17 @@ class FLPeer:
                     'min_train_size': 1200,
                     'data_split': (0.6, 0.3, 0.1), # train, test, valid
                     'epoch_per_round': 1,
-                    'batch_size': 10
+                    'batch_size': 10,
+                    'weights': self.global_model.current_weights
                 }
                 metadata_str = obj_to_pickle_string(metadata)
 
-
-                import numpy as np
-                for layer in self.global_model.model.layers:
-                    print("Global Model***************Layer Weight : ", [np.std(x) for x in layer.get_weights()])
-                
-                from keras.models import model_from_json
-                gm_json = self.global_model.model.to_json()
-                gm = model_from_json(gm_json)
-                gm.current_weights = self.global_model.model.current_weights
-                print("*************GlobalModel vs Model From JSON**********")
-                for layer in gm.layers:
-                    print("To & From JSON GM***************Layer Weight : ", [np.std(x) for x in layer.get_weights()])
-
-                #gm_json1 = self.global_model.model.to_json()
-                gm1 = model_from_json(gm_json)
-                gm1.current_weights = self.global_model.model.current_weights
-                print("*************GlobalModel vs Model From JSON**********")
-                for layer in gm1.layers:
-                    print("To & From JSON GM1***************Layer Weight : ", [np.std(x) for x in layer.get_weights()])
-
-
                 self.on_init(metadata_str)
+                
+                '''
                 for layer in self.local_model.model.layers:
                     print("Local Model***************Layer Weight : ", [np.std(x) for x in layer.get_weights()])
-
+                '''
                 self.lib.Write(metadata_str, sys.getsizeof(metadata_str), OP_REQUEST_UPDATE)
 
                 self.is_training = True
@@ -199,49 +172,45 @@ class FLPeer:
                 print("Not participating in round {}".format(tree_round))
                 return
             else:
-                self.run_local_training()
                 parent_idx = (self_idx // (4 ** tree_round)) * (4 ** tree_round)
                 print("Self ID: {}, sending weights to parent: {}".format(self_idx, parent_idx))
 
-            weights_data = self.global_model.get_weights()
-            metadata = {
-                "mode": "send_to_leader",
-                "target_bucket_peer_id": self.sorted_ids[parent_idx],
-                "weights": weights_data,
-                "round": tree_round,
-                "train_size": self.local_model.x_train.shape[0],
-                "valid_size": self.local_model.x_valid.shape[0],
-                "train_loss": self.train_loss,
-                "train_accuracy": self.train_accuracy
-            }
+                my_weights, t_loss, t_accuracy = self.local_model.train_one_round()
+                metadata = {
+                    "mode": "send_to_leader",
+                    "target_bucket_peer_id": self.sorted_ids[parent_idx],
+                    "weights": my_weights,
+                    "round": tree_round,
+                    "train_size": self.local_model.x_train.shape[0],
+                    "valid_size": self.local_model.x_valid.shape[0],
+                    "train_loss": t_loss,
+                    "train_accuracy": t_accuracy
+                }
 
-            data_str = obj_to_pickle_string(metadata)
-            self.lib.Write(data_str, sys.getsizeof(data_str), OP_CLIENT_UPDATE)
+                data_str = obj_to_pickle_string(metadata)
+                self.lib.Write(data_str, sys.getsizeof(data_str), OP_CLIENT_UPDATE)
 
     def process_and_clear(self, targets, for_round):
         print("{} Processing weight information".format(self.cid))
+        self.global_model.update_weights(
+                        [x['weights'] for x in self.current_round_client_updates],
+                        [x['train_size'] for x in self.current_round_client_updates],
+                    )
+        aggr_train_loss, aggr_train_accuracy = self.global_model.aggregate_train_loss_accuracy(
+            [x['train_loss'] for x in self.current_round_client_updates],
+            [x['train_accuracy'] for x in self.current_round_client_updates],
+            [x['train_size'] for x in self.current_round_client_updates],
+            for_round
+        )
+        if 'valid_loss' in self.current_round_client_updates[0]:
+            aggr_valid_loss, aggr_valid_accuracy = self.global_model.aggregate_valid_loss_accuracy(
+                [x['valid_loss'] for x in self.current_round_client_updates],
+                [x['valid_accuracy'] for x in self.current_round_client_updates],
+                [x['valid_size'] for x in self.current_round_client_updates],
+                for_round
+            )
 
-        # self.global_model.update_weights(
-        #                 [x['weights'] for x in self.current_round_client_updates],
-        #                 [x['train_size'] for x in self.current_round_client_updates],
-        #             )
-        # aggr_train_loss, aggr_train_accuracy = self.global_model.aggregate_train_loss_accuracy(
-        #     [x['train_loss'] for x in self.current_round_client_updates],
-        #     [x['train_accuracy'] for x in self.current_round_client_updates],
-        #     [x['train_size'] for x in self.current_round_client_updates],
-        #     for_round
-        # )
-        # if 'valid_loss' in self.current_round_client_updates[0]:
-        #     aggr_valid_loss, aggr_valid_accuracy = self.global_model.aggregate_valid_loss_accuracy(
-        #         [x['valid_loss'] for x in self.current_round_client_updates],
-        #         [x['valid_accuracy'] for x in self.current_round_client_updates],
-        #         [x['valid_size'] for x in self.current_round_client_updates],
-        #         for_round
-        #     )
-
-        # self.local_model.set_weights(self.global_model.current_weights)
-        self.run_local_training()
-        #self.global_model.current_weights = self.local_model.get_weights()
+        self.local_model.set_weights(self.global_model.current_weights)
         data = {
             "mode": "send_to_children",
             "targets": targets,
@@ -325,7 +294,9 @@ class FLPeer:
             if self.first_time == 1:
                 self.first_time = 0
                 self.on_init(data)
-
+            if parsed_data['round']==1:
+                weights = parsed_data['weights']
+                self.local_model.set_weights(weights)
             self.update_for_round(parsed_data['round'])
 
         def handle_client_update(data):
@@ -342,6 +313,18 @@ class FLPeer:
                 expected_weights = min(len(targets)-1, 3)
 
                 if len(self.current_round_client_updates) >= expected_weights:
+                    my_weights, t_loss, t_accuracy = self.local_model.train_one_round()
+                    metadata = {
+                        "mode": "send_to_leader",
+                        "target_bucket_peer_id": self.cid,
+                        "weights": my_weights,
+                        "round": 0,
+                        "train_size": self.local_model.x_train.shape[0],
+                        "valid_size": self.local_model.x_valid.shape[0],
+                        "train_loss": t_loss,
+                        "train_accuracy": t_accuracy
+                    }
+                    self.current_round_client_updates.append(metadata)
                     self.process_and_clear(targets[self_idx:expected_weights], parsed_data['round'])
 
             elif parsed_data.get('mode') == "send_to_children": 
@@ -355,8 +338,8 @@ class FLPeer:
                     return
                 else:
                     print("Updating model received from parent!")
-                    #self.global_model.current_weights = parsed_data['weights']
-                    #self.local_model.set_weights(parsed_data['weights'])
+                    weights = parsed_data['weights']
+                    self.local_model.set_weights(weights)
                     #CreateModelFile("model_weights", self.global_model)
 
 
@@ -547,9 +530,6 @@ class LocalModel(object):
               optimizer=keras.optimizers.Adadelta(),
               metrics=['accuracy'])
         
-        for layer in self.model.layers:
-            print("During Training***************Layer Weight : ", [np.std(x) for x in layer.get_weights()])
-
         self.model.fit(self.x_train, self.y_train,
                   epochs=self.model_config['epoch_per_round'],
                   batch_size=self.model_config['batch_size'],

@@ -321,7 +321,7 @@ func handle(ctx p2plib.HandlerContext) error {
 	    return nil
     }
 
-    fmt.Printf("recv msg from %s(%s) opcode : %v\n", ctx.ID().Address, ctx.ID().ID.String()[:printedLength], msg.opcode)
+    //fmt.Printf("recv msg from %s(%s) opcode : %v\n", ctx.ID().Address, ctx.ID().ID.String()[:printedLength], msg.opcode)
 	ptr := unsafe.Pointer(&msg.contents[0])
 
 	if msg.opcode == OP_RECV {
@@ -457,11 +457,11 @@ func Write(src *C.char, size C.int, opcode byte) { // TODO : change name to broa
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	    data := C.GoBytes(unsafe.Pointer(src), C.int(size))
 	    err := node.SendMessage(ctx, id.Address, chatMessage{opcode: opcode, contents: data}, kademlia.OP_ONE_TIME)
-	    fmt.Printf("Send message to %s(%s) opcode: %v\n",
-		    id.Address,
-		    id.ID.String()[:printedLength],
-		    opcode,
-		    )
+	    // fmt.Printf("Send message to %s(%s) opcode: %v\n",
+		   //  id.Address,
+		   //  id.ID.String()[:printedLength],
+		   //  opcode,
+		   //  )
 	    cancel()
 	    if err != nil {
 		fmt.Printf("Failed to send message to %s(%s). Skipping... [error: %s]\n",
