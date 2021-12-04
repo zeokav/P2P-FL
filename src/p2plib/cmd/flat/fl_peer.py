@@ -106,7 +106,7 @@ class FLPeer:
             else:
                 fake_data, my_class_distr = self.datasource.fake_non_iid_data(
                     min_train=model_config['min_train_size'],
-                    max_train=FederatedClient.MAX_DATASET_SIZE_KEPT,
+                    max_train=FLPeer.MAX_DATASET_SIZE_KEPT,
                     data_split=model_config['data_split']
                 )
                 storeData("fake_data",fake_data)
