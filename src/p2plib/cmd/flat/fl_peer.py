@@ -124,7 +124,7 @@ class FLPeer:
                     'model_id': self.model_id,
                     'min_train_size': 1200,
                     'data_split': (0.6, 0.3, 0.1), # train, test, valid
-                    'epoch_per_round': 1,
+                    'epoch_per_round': 10,
                     'batch_size': 10,
                     'weights': self.global_model.current_weights
                 }
