@@ -541,12 +541,6 @@ class LocalModel(object):
         score = self.model.evaluate(self.x_train, self.y_train, verbose=0)
         print('Train loss:', score[0])
         print('Train accuracy:', score[1])
-<<<<<<< HEAD:src/p2plib/cmd/flat/fl_peer_1.py
-        # Store model here
-=======
-
-
->>>>>>> 84fdfcf7b9cec1903f81220a5d9e54e7d11c92d5:src/p2plib/cmd/flat/fl_peer_cifar.py
         return self.model.get_weights(), score[0], score[1]
 
     def validate(self):

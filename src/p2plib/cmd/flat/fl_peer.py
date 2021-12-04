@@ -238,7 +238,7 @@ class FLPeer:
         if completion_count <= curr_count:
             print("Received update ack from all children. ")
             # There can be more rounds
-            if completion_count != 0:
+            if len(self.sorted_ids) // (4 ** curr_round) != 0:
                 print("Initiating the next round.")
                 metadata = {
                     "op": "request_update",
