@@ -125,8 +125,8 @@ class FLPeer:
                     'model_id': self.model_id,
                     'min_train_size': 1200,
                     'data_split': (0.6, 0.3, 0.1), # train, test, valid
-                    'epoch_per_round': 10,
-                    'batch_size': 10,
+                    'epoch_per_round': 5,
+                    'batch_size': 40,
                     'weights': self.global_model.current_weights
                 }
                 metadata_str = obj_to_pickle_string(metadata)
@@ -186,7 +186,7 @@ class FLPeer:
                     "round": tree_round,
                     "train_size": self.local_model.x_train.shape[0],
                     "valid_size": self.local_model.x_valid.shape[0],
-                    "train_loss": self.train_losses,
+                    "train_loss": self.train_loss,
                     "train_accuracy": self.train_accuracy
                 }
 
