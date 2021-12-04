@@ -10,7 +10,7 @@ services:
     image: "p2p-fl:latest"
     volumes:
       - ./demo:/home/demo
-      - ./data:/home/data/node-1
+      - ./data/node-1:/home/work/p2plib/cmd/flat/data
     ports:
       - "8080:5000"
     environment:
@@ -30,7 +30,7 @@ services:
     image: "p2p-fl:latest"
     volumes:
       - ./demo:/home/demo
-      - ./data:/home/data/node-2
+      - ./data/node-2:/home/work/p2plib/cmd/flat/data
     environment:
       - NODE_ID=2
       - GROUP_ID=1
@@ -50,7 +50,7 @@ services:
     image: "p2p-fl:latest"
     volumes:
       - ./demo:/home/demo
-      - ./data:/home/data/node-3
+      - ./data/node-3:/home/work/p2plib/cmd/flat/data
     environment:
       - NODE_ID=3
       - GROUP_ID=1
@@ -70,7 +70,7 @@ services:
     image: "p2p-fl:latest"
     volumes:
       - ./demo:/home/demo
-      - ./data:/home/data/node-4
+      - ./data/node-4:/home/work/p2plib/cmd/flat/data
     environment:
       - NODE_ID=4
       - GROUP_ID=1
@@ -92,7 +92,7 @@ services:
 
     volumes:
       - ./demo:/home/demo
-      - ./data:/home/data/node-5
+      - ./data/node-5:/home/work/p2plib/cmd/flat/data
     environment:
       - NODE_ID=5
       - GROUP_ID=2
@@ -113,7 +113,7 @@ services:
 
     volumes:
       - ./demo:/home/demo
-      - ./data:/home/data/node-6
+      - ./data/node-6:/home/work/p2plib/cmd/flat/data
     environment:
       - NODE_ID=6
       - GROUP_ID=2
