@@ -100,9 +100,9 @@ class FLPeer:
     def on_init(self, data):
             model_config = pickle_string_to_obj(data)
             
-            if os.path.exists("fake_data") and os.path.exists("my_class_distr"):
-                fake_data = loadData("fake_data")
-                my_class_distr = loadData("my_class_distr")
+            if os.path.exists("data/fake_data") and os.path.exists("data/my_class_distr"):
+                fake_data = loadData("data/fake_data")
+                my_class_distr = loadData("data/my_class_distr")
             else:
                 fake_data, my_class_distr = self.datasource.fake_non_iid_data(
                     min_train=model_config['min_train_size'],
