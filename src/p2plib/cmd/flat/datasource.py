@@ -17,7 +17,7 @@ class DataSource(object):
 
 class Mnist(DataSource):
 
-    IID = False
+    IID = True
     MAX_NUM_CLASSES_PER_CLIENT = 5
     
     def __init__(self):
