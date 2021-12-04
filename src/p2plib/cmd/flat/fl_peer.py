@@ -97,10 +97,8 @@ class FLPeer:
         
         
     def on_init(self, data):
-            print('on init')
             model_config = pickle_string_to_obj(data)
-            print('preparing local data based on server model_config')
-
+            
             if os.path.exists("fake_data") and os.path.exists("my_class_distr"):
                 fake_data = loadData("fake_data")
                 my_class_distr = loadData("my_class_distr")
@@ -191,7 +189,8 @@ class FLPeer:
                 self.lib.Write(data_str, sys.getsizeof(data_str), OP_CLIENT_UPDATE)
 
     def process_and_clear(self, targets, for_round):
-        print("{} Processing weight information".format(self.cid))
+        print("{} : Processing weight information".format(self.cid))
+        print("Aggregating Weights for {} nodes".format(len(self.current_round_client_updates)))
         self.global_model.update_weights(
                         [x['weights'] for x in self.current_round_client_updates],
                         [x['train_size'] for x in self.current_round_client_updates],
@@ -210,7 +209,6 @@ class FLPeer:
                 for_round
             )
 
-        self.local_model.set_weights(self.global_model.current_weights)
         data = {
             "mode": "send_to_children",
             "targets": targets,
@@ -294,6 +292,7 @@ class FLPeer:
             if self.first_time == 1:
                 self.first_time = 0
                 self.on_init(data)
+
             if parsed_data['round']==1:
                 weights = parsed_data['weights']
                 self.local_model.set_weights(weights)
@@ -313,6 +312,7 @@ class FLPeer:
                 expected_weights = min(len(targets)-1, 3)
 
                 if len(self.current_round_client_updates) >= expected_weights:
+                    self.local_model.set_weights(self.global_model.current_weights)
                     my_weights, t_loss, t_accuracy = self.local_model.train_one_round()
                     metadata = {
                         "mode": "send_to_leader",
