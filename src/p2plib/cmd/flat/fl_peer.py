@@ -60,10 +60,11 @@ def loadData(fname):
 
 
 class FLPeer:
+    MAX_DATASET_SIZE_KEPT = 1200
     def __init__(self, global_model, host, port, bootstrap_address=None):
         self.all_ids = set()
         self.sorted_ids = []
-
+        self.first_time = 1
         self.cid = None
         self.shut_down = False
         self.is_training = False
@@ -81,7 +82,7 @@ class FLPeer:
         self.register_handles()
 
         self.stat_printer = threading.Thread(target=self.print_stats)
-        self.stat_printer.start()
+        #self.stat_printer.start()
 
         self.p2p_trainer = threading.Thread(target=self.run_trainer)
         self.p2p_trainer.start()
@@ -89,48 +90,29 @@ class FLPeer:
         self.global_model = global_model()
         import uuid
         self.model_id = str(uuid.uuid4())
-        self.init_model_config()
-
-        # self.local_training = threading.Thread(target=self.run_local_training)
-        # self.local_training.start()
-
-
-    def init_model_config(self):
-
+        #self.init_model_config()
         import datasource
-        self.datasource = (datasource.Mnist)()
         self.train_loss = None
         self.train_accuracy = None
+        self.datasource = (datasource.Cifar10)()
+        
+        
+    def on_init(self, data):
+            model_config = pickle_string_to_obj(data)
+            
+            if os.path.exists("data/fake_data") and os.path.exists("data/my_class_distr"):
+                fake_data = loadData("data/fake_data")
+                my_class_distr = loadData("data/my_class_distr")
+            else:
+                fake_data, my_class_distr = self.datasource.fake_non_iid_data(
+                    min_train=model_config['min_train_size'],
+                    max_train=FLPeer.MAX_DATASET_SIZE_KEPT,
+                    data_split=model_config['data_split']
+                )
+                storeData("fake_data",fake_data)
+                storeData("my_class_distr",my_class_distr)
 
-        model_config = {
-                        'opcode' : "init",
-                        'model_json': self.global_model.model.to_json(),
-                        'model_id': self.model_id,
-                        'min_train_size': 1200,
-                        'data_split': (0.6, 0.3, 0.1), # train, test, valid
-                        'epoch_per_round': 1,
-                        'batch_size': 10
-                    }
-
-        if os.path.exists("fake_data") and os.path.exists("my_class_distr"):
-                fake_data = loadData("fake_data")
-                my_class_distr = loadData("my_class_distr")
-        else:
-            fake_data, my_class_distr = self.datasource.fake_non_iid_data(
-                min_train=model_config['min_train_size'],
-                max_train=FederatedClient.MAX_DATASET_SIZE_KEPT,
-                data_split=model_config['data_split']
-            )
-            storeData("fake_data",fake_data)
-            storeData("my_class_distr",my_class_distr)
-            #CreateModelData("model_weights", self.global_model)# Store model here
-
-        self.local_model = LocalModel(model_config, fake_data)
-
-    def run_local_training(self):
-            my_weights, self.train_loss, self.train_accuracy = self.local_model.train_one_round()
-            print("\n Train Loss : {}, Train accuracy : {}".format(self.train_loss, self.train_accuracy))
-            storeData("model_weights", self.local_model)
+            self.local_model = LocalModel(model_config, fake_data)
 
     def run_trainer(self):
         while not self.shut_down:
@@ -138,16 +120,30 @@ class FLPeer:
                 print("Initializing training on: ", self.cid)
                 metadata = {
                     "op": "request_update",
-                    "round": 1
+                    "round": 1,
+                    'model_json': self.global_model.model.to_json(),
+                    'model_id': self.model_id,
+                    'min_train_size': 1200,
+                    'data_split': (0.6, 0.3, 0.1), # train, test, valid
+                    'epoch_per_round': 5,
+                    'batch_size': 20,
+                    'weights': self.global_model.current_weights
                 }
                 metadata_str = obj_to_pickle_string(metadata)
+
+                self.on_init(metadata_str)
+                
+                '''
+                for layer in self.local_model.model.layers:
+                    print("Local Model***************Layer Weight : ", [np.std(x) for x in layer.get_weights()])
+                '''
                 self.lib.Write(metadata_str, sys.getsizeof(metadata_str), OP_REQUEST_UPDATE)
 
                 self.is_training = True
 
                 storeData("node_list", self.sorted_ids)
 
-            time.sleep(30)
+            time.sleep(1)
 
     def print_stats(self):
         while not self.shut_down:
@@ -158,11 +154,11 @@ class FLPeer:
                   "\n\tTraining: {}".format(datetime.datetime.now(), self.cid, self.all_ids,
                                             self.sorted_ids.index(self.cid) if self.cid else "",
                                             self.is_training))
-            time.sleep(5)
+            time.sleep(10)
 
     def update_for_round(self, tree_round):
         self_idx = self.sorted_ids.index(self.cid)
-
+	
         round_parent_indices = [index for index in range(len(self.all_ids)) if index % (4 ** tree_round) == 0]
 
         if self_idx in round_parent_indices:
@@ -175,28 +171,31 @@ class FLPeer:
                 print("Not participating in round {}".format(tree_round))
                 return
             else:
-                self.run_local_training()
                 parent_idx = (self_idx // (4 ** tree_round)) * (4 ** tree_round)
                 print("Self ID: {}, sending weights to parent: {}".format(self_idx, parent_idx))
+                
+                if tree_round == 1:
+                    my_weights, self.train_loss, self.train_accuracy = self.local_model.train_one_round()
+                else:
+                    my_weights = self.global_model.current_weights
+                
+                metadata = {
+                    "mode": "send_to_leader",
+                    "target_bucket_peer_id": self.sorted_ids[parent_idx],
+                    "weights": my_weights,
+                    "round": tree_round,
+                    "train_size": self.local_model.x_train.shape[0],
+                    "valid_size": self.local_model.x_valid.shape[0],
+                    "train_loss": self.train_loss,
+                    "train_accuracy": self.train_accuracy
+                }
 
-            weights_data = self.global_model.get_weights()
-            metadata = {
-                "mode": "send_to_leader",
-                "target_bucket_peer_id": self.sorted_ids[parent_idx],
-                "weights": weights_data,
-                "round": tree_round,
-                "train_size": self.local_model.x_train.shape[0],
-                "valid_size": self.local_model.x_valid.shape[0],
-                "train_loss": self.train_loss,
-                "train_accuracy": self.train_accuracy
-            }
-
-            data_str = obj_to_pickle_string(metadata)
-            self.lib.Write(data_str, sys.getsizeof(data_str), OP_CLIENT_UPDATE)
+                data_str = obj_to_pickle_string(metadata)
+                self.lib.Write(data_str, sys.getsizeof(data_str), OP_CLIENT_UPDATE)
 
     def process_and_clear(self, targets, for_round):
-        print("{} Processing weight information".format(self.cid))
-
+        print("{} : Processing weight information".format(self.cid))
+        print("Aggregating Weights for {} nodes".format(len(self.current_round_client_updates)))
         self.global_model.update_weights(
                         [x['weights'] for x in self.current_round_client_updates],
                         [x['train_size'] for x in self.current_round_client_updates],
@@ -221,7 +220,6 @@ class FLPeer:
             "round": for_round,
             "weights": self.global_model.current_weights
         }
-        self.local_model.set_weights(self.global_model.current_weights)
         data_str = obj_to_pickle_string(data)
         self.lib.Write(data_str, sys.getsizeof(data_str), OP_CLIENT_UPDATE)
 
@@ -296,6 +294,13 @@ class FLPeer:
 
         def handle_update_request(data):
             parsed_data = pickle_string_to_obj(data)
+            if self.first_time == 1:
+                self.first_time = 0
+                self.on_init(data)
+
+            if parsed_data['round']==1:
+                weights = parsed_data['weights']
+                self.local_model.set_weights(weights)
             self.update_for_round(parsed_data['round'])
 
         def handle_client_update(data):
@@ -312,6 +317,25 @@ class FLPeer:
                 expected_weights = min(len(targets)-1, 3)
 
                 if len(self.current_round_client_updates) >= expected_weights:
+                    self.local_model.set_weights(self.global_model.current_weights)
+                    curr_round = parsed_data['round']
+                    
+                    if curr_round == 1:
+                        my_weights, self.train_loss, self.train_accuracy = self.local_model.train_one_round()
+                    else:
+                        my_weights = self.global_model.current_weights
+                    
+                    metadata = {
+                        "mode": "send_to_leader",
+                        "target_bucket_peer_id": self.cid,
+                        "weights": my_weights,
+                        "round": 0,
+                        "train_size": self.local_model.x_train.shape[0],
+                        "valid_size": self.local_model.x_valid.shape[0],
+                        "train_loss": self.train_loss,
+                        "train_accuracy": self.train_accuracy
+                    }
+                    self.current_round_client_updates.append(metadata)
                     self.process_and_clear(targets[self_idx:expected_weights], parsed_data['round'])
 
             elif parsed_data.get('mode') == "send_to_children": 
@@ -325,8 +349,8 @@ class FLPeer:
                     return
                 else:
                     print("Updating model received from parent!")
-                    self.global_model.current_weights = parsed_data['weights']
-                    self.local_model.set_weights(parsed_data['weights'])
+                    weights = parsed_data['weights']
+                    self.local_model.set_weights(weights)
                     #CreateModelFile("model_weights", self.global_model)
 
 
@@ -451,23 +475,36 @@ class GlobalModel(object):
         }
 
 
-class GlobalModel_MNIST_CNN(GlobalModel):
+class GlobalModel_CIFAR10_initial(GlobalModel):
     def __init__(self):
-        super(GlobalModel_MNIST_CNN, self).__init__()
+        super(GlobalModel_CIFAR10_initial, self).__init__()
 
     def build_model(self):
-        model = Sequential()
-        model.add(Conv2D(32, kernel_size=(3, 3),
-                         activation='relu',
-                         input_shape=(28, 28, 1)))
-        model.add(Conv2D(64, (3, 3), activation='relu'))
-        model.add(MaxPooling2D(pool_size=(2, 2)))
-        model.add(Dropout(0.25))
-        model.add(Flatten())
-        model.add(Dense(128, activation='relu'))
-        model.add(Dropout(0.5))
-        model.add(Dense(10, activation='softmax'))
+        # ~5MB worth of parameters
+        from keras.models import Sequential
+        from keras.layers import Dense, Dropout, Flatten
+        from keras.layers import Conv2D, MaxPooling2D
 
+        model = Sequential()
+        model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))
+        model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+        model.add(MaxPooling2D((2, 2)))
+        model.add(Dropout(0.2))
+        model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+        model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+        model.add(MaxPooling2D((2, 2)))
+        model.add(Dropout(0.2))
+        model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+        model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+        model.add(MaxPooling2D((2, 2)))
+        model.add(Dropout(0.2))
+        model.add(Flatten())
+        model.add(Dense(128, activation='relu', kernel_initializer='he_uniform'))
+        model.add(Dropout(0.2))
+        model.add(Dense(10, activation='softmax'))
+        print(model)
+        # """
+        import tensorflow.keras as keras
         model.compile(loss=keras.losses.categorical_crossentropy,
                       optimizer=keras.optimizers.Adadelta(),
                       metrics=['accuracy'])
@@ -512,10 +549,11 @@ class LocalModel(object):
     # return final weights, train loss, train accuracy
     def train_one_round(self):
         import tensorflow.keras as keras
+        import numpy as np
         self.model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.Adadelta(),
               metrics=['accuracy'])
-
+        
         self.model.fit(self.x_train, self.y_train,
                   epochs=self.model_config['epoch_per_round'],
                   batch_size=self.model_config['batch_size'],
@@ -550,9 +588,9 @@ if __name__ == '__main__':
         print("Starting node sans bootstrap. "
               "Please connect other nodes with bootstrap addr {}:{}"
               .format(sys.argv[1], sys.argv[2]))
-        peer = FLPeer(GlobalModel_MNIST_CNN, sys.argv[1], sys.argv[2])
+        peer = FLPeer(GlobalModel_CIFAR10_initial, sys.argv[1], sys.argv[2])
     else:
         print("Starting the peer and connecting it to the P2P network.")
-        peer = FLPeer(GlobalModel_MNIST_CNN, sys.argv[1], sys.argv[2], sys.argv[3])
+        peer = FLPeer(GlobalModel_CIFAR10_initial, sys.argv[1], sys.argv[2], sys.argv[3])
 
     peer.start()

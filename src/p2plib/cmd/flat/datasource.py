@@ -3,6 +3,7 @@ import keras
 from keras.utils import np_utils
 import random
 from keras.datasets import mnist
+from keras.datasets import cifar10
 from keras import backend as K
 
 class DataSource(object):
@@ -16,7 +17,7 @@ class DataSource(object):
 
 class Mnist(DataSource):
 
-    IID = False
+    IID = True
     MAX_NUM_CLASSES_PER_CLIENT = 5
     
     def __init__(self):
