@@ -55,6 +55,7 @@ pip3 install msgpack_numpy
 pip3 install flask
 pip3 install flask_socketio
 pip3 install -U socketIO-client --user
+pip3 install opencv-python
 
 pip3 install Flask-SocketIO==4.3.1
 pip3 install python-engineio==3.13.2
