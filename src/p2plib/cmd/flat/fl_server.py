@@ -261,8 +261,8 @@ class FLServer(object):
                 'model_id': self.model_id,
                 'min_train_size': 1200,
                 'data_split': (0.6, 0.3, 0.1), # train, test, valid
-                'epoch_per_round': 1,
-                'batch_size': 10
+                'epoch_per_round': 2,
+                'batch_size': 16
             }
             sdata = obj_to_pickle_string(metadata)
             self.lib.Write(sdata, sys.getsizeof(sdata),OP_INIT)

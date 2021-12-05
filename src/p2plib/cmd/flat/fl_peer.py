@@ -125,8 +125,8 @@ class FLPeer:
                     'model_id': self.model_id,
                     'min_train_size': 1200,
                     'data_split': (0.6, 0.3, 0.1), # train, test, valid
-                    'epoch_per_round': 5,
-                    'batch_size': 20,
+                    'epoch_per_round': 20,
+                    'batch_size': 32,
                     'weights': self.global_model.current_weights
                 }
                 metadata_str = obj_to_pickle_string(metadata)
@@ -297,10 +297,13 @@ class FLPeer:
             if self.first_time == 1:
                 self.first_time = 0
                 self.on_init(data)
-
-            if parsed_data['round']==1:
                 weights = parsed_data['weights']
                 self.local_model.set_weights(weights)
+            '''
+            if parsed_data['round']==1:
+                weights = parsed_data['weights']
+                #self.local_model.set_weights(weights)
+            '''
             self.update_for_round(parsed_data['round'])
 
         def handle_client_update(data):
@@ -317,13 +320,13 @@ class FLPeer:
                 expected_weights = min(len(targets)-1, 3)
 
                 if len(self.current_round_client_updates) >= expected_weights:
-                    self.local_model.set_weights(self.global_model.current_weights)
+                    #self.local_model.set_weights(self.global_model.current_weights)
                     curr_round = parsed_data['round']
                     
                     if curr_round == 1:
                         my_weights, self.train_loss, self.train_accuracy = self.local_model.train_one_round()
                     else:
-                        my_weights = self.global_model.current_weights
+                       my_weights = self.global_model.current_weights
                     
                     metadata = {
                         "mode": "send_to_leader",
@@ -350,7 +353,7 @@ class FLPeer:
                 else:
                     print("Updating model received from parent!")
                     weights = parsed_data['weights']
-                    self.local_model.set_weights(weights)
+                    #self.local_model.set_weights(weights)
                     #CreateModelFile("model_weights", self.global_model)
 
 
@@ -487,17 +490,18 @@ class GlobalModel_CIFAR10_initial(GlobalModel):
 
         model = Sequential()
         model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))
-        model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
         model.add(MaxPooling2D((2, 2)))
-        model.add(Dropout(0.2))
-        model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
         model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
         model.add(MaxPooling2D((2, 2)))
         model.add(Dropout(0.2))
-        model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
-        model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
-        model.add(MaxPooling2D((2, 2)))
+        model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+        # model.add(Conv2D(64, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+        # model.add(MaxPooling2D((2, 2)))
         model.add(Dropout(0.2))
+        # model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+        # model.add(Conv2D(128, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
+        # model.add(MaxPooling2D((2, 2)))
+        # model.add(Dropout(0.2))
         model.add(Flatten())
         model.add(Dense(128, activation='relu', kernel_initializer='he_uniform'))
         model.add(Dropout(0.2))
@@ -506,7 +510,7 @@ class GlobalModel_CIFAR10_initial(GlobalModel):
         # """
         import tensorflow.keras as keras
         model.compile(loss=keras.losses.categorical_crossentropy,
-                      optimizer=keras.optimizers.Adadelta(),
+                      optimizer='adam',
                       metrics=['accuracy'])
         return model
 
@@ -527,8 +531,8 @@ class LocalModel(object):
         # the weights will be initialized on first pull from server
 
         import tensorflow.keras as keras
-        self.model.compile(loss=keras.losses.categorical_crossentropy,
-              optimizer=keras.optimizers.Adadelta(),
+        self.model.compile(loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+              optimizer="adam",
               metrics=['accuracy'])
 
         train_data, test_data, valid_data = data_collected
@@ -553,7 +557,7 @@ class LocalModel(object):
         self.model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.Adadelta(),
               metrics=['accuracy'])
-        
+        print(self.x_train.shape)
         self.model.fit(self.x_train, self.y_train,
                   epochs=self.model_config['epoch_per_round'],
                   batch_size=self.model_config['batch_size'],
