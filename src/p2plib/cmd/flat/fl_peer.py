@@ -60,6 +60,7 @@ def loadData(fname):
 
 
 class FLPeer:
+    MAX_DATASET_SIZE_KEPT = 1200
     def __init__(self, global_model, host, port, bootstrap_address=None):
         self.all_ids = set()
         self.sorted_ids = []
@@ -105,7 +106,7 @@ class FLPeer:
             else:
                 fake_data, my_class_distr = self.datasource.fake_non_iid_data(
                     min_train=model_config['min_train_size'],
-                    max_train=FederatedClient.MAX_DATASET_SIZE_KEPT,
+                    max_train=FLPeer.MAX_DATASET_SIZE_KEPT,
                     data_split=model_config['data_split']
                 )
                 storeData("fake_data",fake_data)
@@ -124,7 +125,7 @@ class FLPeer:
                     'model_id': self.model_id,
                     'min_train_size': 1200,
                     'data_split': (0.6, 0.3, 0.1), # train, test, valid
-                    'epoch_per_round': 10,
+                    'epoch_per_round': 1,
                     'batch_size': 10,
                     'weights': self.global_model.current_weights
                 }
@@ -173,7 +174,11 @@ class FLPeer:
                 parent_idx = (self_idx // (4 ** tree_round)) * (4 ** tree_round)
                 print("Self ID: {}, sending weights to parent: {}".format(self_idx, parent_idx))
 
-                my_weights, t_loss, t_accuracy = self.local_model.train_one_round()
+                if tree_round == 1:
+                    my_weights, self.train_loss, self.train_accuracy = self.local_model.train_one_round()
+                else:
+                    my_weights = self.global_model.current_weights
+                
                 metadata = {
                     "mode": "send_to_leader",
                     "target_bucket_peer_id": self.sorted_ids[parent_idx],
@@ -181,8 +186,8 @@ class FLPeer:
                     "round": tree_round,
                     "train_size": self.local_model.x_train.shape[0],
                     "valid_size": self.local_model.x_valid.shape[0],
-                    "train_loss": t_loss,
-                    "train_accuracy": t_accuracy
+                    "train_loss": self.train_loss,
+                    "train_accuracy": self.train_accuracy
                 }
 
                 data_str = obj_to_pickle_string(metadata)
@@ -313,7 +318,11 @@ class FLPeer:
 
                 if len(self.current_round_client_updates) >= expected_weights:
                     self.local_model.set_weights(self.global_model.current_weights)
-                    my_weights, t_loss, t_accuracy = self.local_model.train_one_round()
+                    curr_round = parsed_data['round']
+                    if curr_round == 1:
+                        my_weights, self.train_loss, self.train_accuracy = self.local_model.train_one_round()
+                    else:
+                        my_weights = self.global_model.current_weights
                     metadata = {
                         "mode": "send_to_leader",
                         "target_bucket_peer_id": self.cid,
@@ -321,8 +330,8 @@ class FLPeer:
                         "round": 0,
                         "train_size": self.local_model.x_train.shape[0],
                         "valid_size": self.local_model.x_valid.shape[0],
-                        "train_loss": t_loss,
-                        "train_accuracy": t_accuracy
+                        "train_loss": self.train_loss,
+                        "train_accuracy": self.train_accuracy
                     }
                     self.current_round_client_updates.append(metadata)
                     self.process_and_clear(targets[self_idx:expected_weights], parsed_data['round'])
