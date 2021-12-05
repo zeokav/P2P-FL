@@ -5,8 +5,8 @@ mkdir -p "/demo/out/${NODE_ID}"
 
 if [[ $NODE_ID -eq 1 ]]
 then
-  python3 /home/work/server.py &
-  python3 -u ./fl_peer.py "${SELF_IP}" 8000
+  python3 -u /home/work/server.py &
+  python3 -u  ./fl_peer.py "${SELF_IP}" 8000
 else
   (( sleeptime=NODE_ID*10 ))
   sleep "$sleeptime"
