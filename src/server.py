@@ -1,38 +1,57 @@
-# NOTE!!
-# For handling files: https://flask.palletsprojects.com/en/2.0.x/quickstart/#file-uploads
-# General flask handlers overview: https://flask.palletsprojects.com/en/2.0.x/quickstart/
-
-# From the host, you can reach this server on localhost:8080. I've mapped the ports.
-# Try chrome -> localhost:8080/hitme
-
-from flask import Flask
+import pickle
 import os
+
 import numpy as np
+import cv2
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-def loadData(fname):
+
+def load_data(fname):
     datafile = open(fname, 'rb')
     db = pickle.load(datafile)
     datafile.close()
     return db
 
-@app.route("/inference", methods = ["POST"])
+
+@app.after_request
+def after_request(response):
+    header = response.headers
+    header["Access-Control-Allow-Headers"] = "*"
+    header["Access-Control-Allow-Origin"] = "*"
+    header["Access-Control-Allow-Methods"] = "*"
+    return response
+
+
+@app.route("/inference", methods=["POST"])
 def inference():
+    if not os.path.exists("model_weights"):
+        return jsonify({
+            "error": "Model not ready"
+        }), 500
 
-    data = request.data
-    if os.path.exists("model_weights"):
-        model = load_data("model_weights")
-        image = np.frombuffer(base64.decodebytes(data), dtype=np.float64)
-        prediction = model.predict(image)
-        return prediction
+    img_np = np.frombuffer(request.files['req_image'].read(), np.uint8)
+    img = cv2.imdecode(img_np, cv2.IMREAD_COLOR)
 
-@app.route("/node_list", methods = ["GET"])
+    model = load_data("model_weights")
+
+    # We'll have to reshape the image here.
+    prediction = model.predict(img)
+
+    # This will try to return an ndarray, need to transform.
+    return jsonify({
+        "predicted_class": prediction,
+        "confidence": 50
+    }), 200
+
+
+@app.route("/node_list", methods=["GET"])
 def node_list():
-
     if os.path.exists("node_list"):
+        # Change this to return a jsonified obj as above.
         return 4, load_data("node_list")
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True, port=8080)
