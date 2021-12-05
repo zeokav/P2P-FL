@@ -37,6 +37,7 @@ apt-get install -y python-dev
 apt-get install -y python3-dev
 apt-get install -y gawk
 apt-get install -y python-virtualenv swig python-wheel libcurl3-dev libssl-dev libffi-dev libxml2-dev libxslt1-dev zlib1g-dev
+apt-get install -y ffmpeg libsm6 libxext6
 
 wget https://bootstrap.pypa.io/ez_setup.py -O - | python3
 
