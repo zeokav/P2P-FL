@@ -1,0 +1,71 @@
+<mat-toolbar color="primary">
+  CS6220 - P2P Federated Learning Demo
+</mat-toolbar>
+
+<div style="padding: 1%">
+  <mat-tab-group>
+
+    <!-- Tab 1 -->
+    <mat-tab label="Inference Tool">
+      <mat-card>
+        <mat-card-content style="padding: 10px">
+
+          <mat-grid-list cols="3" [rowHeight]="'25rem'">
+            <mat-grid-tile colspan="1">
+              <mat-grid-tile-header style="background: #3f51b5">1. Pick an image</mat-grid-tile-header>
+              <div style="display: flex; flex-direction: column; justify-content: center; width: 100%">
+                <ngx-file-drop dropZoneLabel="Drop files here" (onFileDrop)="dropped($event)"
+                               [accept]="'image/png, image/jpeg'" style="width: 100%" [directory]="false"
+                               [multiple]="false">
+
+                  <ng-template ngx-file-drop-content-tmp let-openFileSelector="openFileSelector">
+                    <button type="button" (click)="openFileSelector()" mat-button mat-flat-button>
+                      Browse Files
+                    </button>
+                  </ng-template>
+                </ngx-file-drop>
+              </div>
+            </mat-grid-tile>
+
+            <mat-grid-tile colspan="1">
+              <mat-grid-tile-header style="background: #3f51b5">2. Trigger inference</mat-grid-tile-header>
+              <div *ngIf="files.length === 0" style="display: flex; align-items: center">
+                <mat-spinner [diameter]="40" style="padding-right: 10px"></mat-spinner> Waiting for a file to be selected.
+              </div>
+              <div *ngIf="files.length > 0" style="display: flex; flex-direction: column; align-items: center">
+                <div *ngIf="tempUrl !== undefined"><img [src]="tempUrl" alt="img" width="200" height="200"/></div>
+                <div *ngIf="tempUrl !== undefined" style="font-weight: bold; text-transform: capitalize">
+                  {{files[0].fileEntry.name.split(".")[0]}}
+                </div>
+                <div style="padding-top: 10px">
+                  <button mat-button mat-raised-button color="primary" (click)="runInference()">Submit</button>
+                </div>
+
+              </div>
+            </mat-grid-tile>
+
+            <mat-grid-tile colspan="1">
+              <mat-grid-tile-header style="background: #3f51b5">3. Results</mat-grid-tile-header>
+            </mat-grid-tile>
+          </mat-grid-list>
+
+
+
+        </mat-card-content>
+      </mat-card>
+
+    </mat-tab>
+
+
+    <!-- Tab 2 -->
+    <mat-tab label="Network Information">
+      <mat-card>
+        <mat-card-title>Peer State</mat-card-title>
+        <mat-card-content>
+
+        </mat-card-content>
+      </mat-card>
+    </mat-tab>
+  </mat-tab-group>
+
+</div>
