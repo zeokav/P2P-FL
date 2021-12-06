@@ -4,9 +4,11 @@ import os
 import numpy as np
 import cv2
 from flask import Flask, request, jsonify
+from tensorflow import keras
+
 
 app = Flask(__name__)
-
+class_list = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
 
 def load_data(fname):
     datafile = open(fname, 'rb')
@@ -26,23 +28,22 @@ def after_request(response):
 
 @app.route("/inference", methods=["POST"])
 def inference():
-    if not os.path.exists("model_weights"):
+    if not os.path.exists("model"):
         return jsonify({
             "error": "Model not ready"
-        }), 500
+        }), 404
 
     img_np = np.frombuffer(request.files['req_image'].read(), np.uint8)
     img = cv2.imdecode(img_np, cv2.IMREAD_COLOR)
 
-    model = load_data("model_weights")
+    model = keras.models.load_model("model")
 
-    # We'll have to reshape the image here.
-    prediction = model.predict(img)
+    prediction = model.predict(np.expand_dims(img, 0))
+    max_ind = np.argmax(prediction[0])
 
-    # This will try to return an ndarray, need to transform.
     return jsonify({
-        "predicted_class": prediction,
-        "confidence": 50
+        "predicted_class": class_list[max_ind],
+        "confidence": prediction[0].tolist()[max_ind] * 100
     }), 200
 
 

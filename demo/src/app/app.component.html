@@ -46,6 +46,16 @@
 
             <mat-grid-tile colspan="1">
               <mat-grid-tile-header style="background: #3f51b5">3. Results</mat-grid-tile-header>
+
+              <mat-spinner *ngIf="inferenceRunning"></mat-spinner>
+              <div style="display: flex; flex-direction: column" *ngIf="result !== undefined">
+                <div>
+                  <b>Prediction:</b> {{ result.predicted_class }}
+                </div>
+                <div>
+                  <b>Confidence:</b> {{ result.confidence }}%
+                </div>
+              </div>
             </mat-grid-tile>
           </mat-grid-list>
 
