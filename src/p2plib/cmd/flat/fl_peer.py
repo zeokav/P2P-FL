@@ -10,12 +10,12 @@ from ctypes import cdll
 import ctypes
 from helper import *
 
-from keras.models import Sequential
-from keras.layers import Dense, Dropout, Flatten
-from keras.layers import Conv2D, MaxPooling2D
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout, Flatten
+from tensorflow.keras.layers import Conv2D, MaxPooling2D
 import tensorflow.keras as keras
 
-# gc.disable()
+#gc.disable()
 default_logger = logging.getLogger('tunnel.logger')
 default_logger.disabled = False
 default_logger.setLevel(logging.CRITICAL)
@@ -351,7 +351,7 @@ class FLPeer:
                     print("Updating model received from parent!")
                     weights = parsed_data['weights']
                     self.local_model.set_weights(weights)
-                    self.local_model.model.save('model')
+                    #self.local_model.model.save('model')
 
 
         global on_recv_cb
@@ -481,9 +481,9 @@ class GlobalModel_CIFAR10_initial(GlobalModel):
 
     def build_model(self):
         # ~5MB worth of parameters
-        from keras.models import Sequential
-        from keras.layers import Dense, Dropout, Flatten
-        from keras.layers import Conv2D, MaxPooling2D
+        from tensorflow.keras.models import Sequential
+        from tensorflow.keras.layers import Dense, Dropout, Flatten
+        from tensorflow.keras.layers import Conv2D, MaxPooling2D
 
         # model = Sequential()
         # model.add(Conv2D(32, (3, 3), activation='relu', input_shape=(32, 32, 3)))
@@ -593,7 +593,7 @@ class LocalModel(object):
         score = self.model.evaluate(self.x_train, self.y_train, verbose=0)
         print('Train loss:', score[0])
         print('Train accuracy:', score[1])
-        self.model.save('model')
+        #self.model.save('model')
         return self.model.get_weights(), score[0], score[1]
 
 

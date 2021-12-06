@@ -221,7 +221,7 @@ class Cifar10(DataSource):
 
         train_set = self.sample_non_iid(self.x_train, self.y_train, train_size, my_class_distr)
         test_set = self.sample_non_iid(self.x_test, self.y_test, valid_size, my_class_distr)
-        valid_set = self.sample_non_iid(self.x_valid, self.y_valid, test_size, my_class_distr)
+        valid_set = self.sample_non_iid(self.x_valid, self.y_valid, test_size, [0.1]*10)
 
         # train_set = [self.sample_single_non_iid(self.x_train, self.y_train, my_class_distr) for _ in range(train_size)]
         # test_set = [self.sample_single_non_iid(self.x_test, self.y_test, my_class_distr) for _ in range(test_size)]
