@@ -130,8 +130,9 @@ class FLPeer:
                     'weights': self.global_model.current_weights
                 }
                 metadata_str = obj_to_pickle_string(metadata)
-
-                self.on_init(metadata_str)
+                if self.first_time == 1:
+                    self.first_time = 0
+                    self.on_init(metadata_str)
                 
                 '''
                 for layer in self.local_model.model.layers:
