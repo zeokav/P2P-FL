@@ -1,10 +1,9 @@
 import numpy as np
-import keras
-from keras.utils import np_utils
 import random
-from keras.datasets import mnist
-from keras.datasets import cifar10
-from keras import backend as K
+import tensorflow.keras as keras
+import tensorflow.keras.utils as np_utils
+from tensorflow.keras.datasets import mnist, cifar10
+from tensorflow.keras import backend as K
 
 class DataSource(object):
     def __init__(self):
@@ -17,7 +16,7 @@ class DataSource(object):
 
 class Mnist(DataSource):
 
-    IID = True
+    IID = False
     MAX_NUM_CLASSES_PER_CLIENT = 5
     
     def __init__(self):
@@ -59,8 +58,8 @@ class Mnist(DataSource):
         else:
             xi = xi.reshape(xi.shape[0], xi.shape[1], 1)
 
-        #y_vec = keras.utils.to_categorical(yi, self.classes.shape[0])
-        y_vec = np_utils.to_categorical(yi, self.classes.shape[0])
+        y_vec = keras.utils.to_categorical(yi, self.classes.shape[0])
+        # y_vec = np_utils.to_categorical(yi, self.classes.shape[0])
         return xi / 255., y_vec
 
     # split evenly into exact num_workers chunks, with test_reserve globally
@@ -110,7 +109,7 @@ class Mnist(DataSource):
 class Cifar10(DataSource):
 
     IID = False
-    MAX_NUM_CLASSES_PER_CLIENT = 5
+    MAX_NUM_CLASSES_PER_CLIENT = 6
     
     def __init__(self):
         (x_train, y_train), (x_test, y_test) = cifar10.load_data()
@@ -132,9 +131,18 @@ class Cifar10(DataSource):
         self.y_valid = self.y[num_train + num_test:]
         self.classes = np.unique(self.y)
     
+
+    def gen_equal_dummy_non_iid_weights(self):
+        classes = Cifar10.MAX_NUM_CLASSES_PER_CLIENT 
+        selection = [1/classes]*classes + [0]*(10-classes)
+        np.random.shuffle(selection)
+        return selection
+        
+
+
     def gen_dummy_non_iid_weights(self):
         self.classes = np.array(range(10))
-        num_classes_this_client = random.randint(1, Mnist.MAX_NUM_CLASSES_PER_CLIENT + 1)
+        num_classes_this_client = random.randint(1, Cifar10.MAX_NUM_CLASSES_PER_CLIENT + 1)
         classes_this_client = random.sample(self.classes.tolist(), num_classes_this_client)
         w = np.array([random.random() for _ in range(num_classes_this_client)])
         weights = np.array([0.] * self.classes.shape[0])
@@ -152,9 +160,15 @@ class Cifar10(DataSource):
             xi = xi.reshape(xi.shape[0], xi.shape[1], 3)
 
         #y_vec = keras.utils.to_categorical(yi, self.classes.shape[0])
-        y_vec = np_utils.to_categorical(yi, self.classes.shape[0]).reshape(self.classes.shape[0])
+        y_vec = np_utils.to_categorical(yi, self.classes.shape[0])
         # print(y_vec.shape)
         return xi / 255., y_vec
+
+    def post_process_new(self, xi, yi):
+        if K.image_data_format() == 'channels_first':
+            xi = np.moveaxis(xi, 1, -1)
+        # y_vec = keras.utils.to_categorical(yi, self.classes.shape[0])
+        return xi / 255., yi
 
     # split evenly into exact num_workers chunks, with test_reserve globally
     def partitioned_by_rows(self, num_workers, test_reserve=.3):
@@ -181,22 +195,38 @@ class Cifar10(DataSource):
         idx = np.random.choice(candidates_idx)
         return self.post_process(x[idx], y[idx])
 
+    def sample_non_iid(self, x, y, size=5000, weight=None):
+        data = np.empty((0,) + x.shape[1:])
+        target = []
+        for idx, class_weight in enumerate(weight):
+            candidate_idx = np.where(y == idx)
+            selected_idx = np.random.choice(candidate_idx[0],int(size*class_weight))
+            data = np.append(data, x[selected_idx], axis=0)
+            target.extend(y[selected_idx])
+        shuffle_mask = np.random.choice(range(len(target)),len(target))
+        data = data[shuffle_mask]
+        target = np.array(target)
+        target = target[shuffle_mask]
+        return self.post_process_new(data, target)
     
     # generate t, t, v dataset given distribution and split
-    def fake_non_iid_data(self, min_train=100, max_train=1000, data_split=(.6,.3,.1)):        
+    def fake_non_iid_data(self, train_size=4000, data_split=(.6,.3,.1)):        
         # my_class_distr = np.array([np.random.random() for _ in range(self.classes.shape[0])])
         # my_class_distr /= np.sum(my_class_distr)
-        my_class_distr = [1. / self.classes.shape[0] * self.classes.shape[0]] if Mnist.IID \
-                else self.gen_dummy_non_iid_weights()
-        
-        train_size = random.randint(min_train, max_train)
+        my_class_distr = self.gen_equal_dummy_non_iid_weights()
+        print(f"{my_class_distr=}")
+        print("Generating Fake Data")
         test_size = int(train_size / data_split[0] * data_split[1])
         valid_size = int(train_size / data_split[0] * data_split[2])
 
-        train_set = [self.sample_single_non_iid(self.x_train, self.y_train, my_class_distr) for _ in range(train_size)]
-        test_set = [self.sample_single_non_iid(self.x_test, self.y_test, my_class_distr) for _ in range(test_size)]
-        valid_set = [self.sample_single_non_iid(self.x_valid, self.y_valid, my_class_distr) for _ in range(valid_size)]
-        print("done generating fake data")
+        train_set = self.sample_non_iid(self.x_train, self.y_train, train_size, my_class_distr)
+        test_set = self.sample_non_iid(self.x_test, self.y_test, valid_size, my_class_distr)
+        valid_set = self.sample_non_iid(self.x_valid, self.y_valid, test_size, my_class_distr)
+
+        # train_set = [self.sample_single_non_iid(self.x_train, self.y_train, my_class_distr) for _ in range(train_size)]
+        # test_set = [self.sample_single_non_iid(self.x_test, self.y_test, my_class_distr) for _ in range(test_size)]
+        # valid_set = [self.sample_single_non_iid(self.x_valid, self.y_valid, my_class_distr) for _ in range(valid_size)]
+        print("Done Generating Fake Data")
 
         return ((train_set, test_set, valid_set), my_class_distr)
 
@@ -206,4 +236,3 @@ if __name__ == "__main__":
     # print(res["test"][1].shape)
     for _ in range(10):
         print(m.gen_dummy_non_iid_weights())
-
