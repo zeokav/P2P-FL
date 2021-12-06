@@ -70,7 +70,7 @@ class FLPeer:
         self.is_training = False
         self.current_round_client_updates = []
         self.round_counter = {}
-
+        self.total_rounds_done = 0
         self.lib = cdll.LoadLibrary('./libp2p.so')
         self.lib.Init_p2p.restype = ctypes.c_char_p
         self.lib.Write.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_byte]
@@ -132,7 +132,10 @@ class FLPeer:
                 if self.first_time == 1:
                     self.first_time = 0
                     self.on_init(metadata_str)
-                
+                self.total_rounds_done = self.total_rounds_done + 1
+                if self.total_rounds_done == 6:
+                    print("Done With Training. Please record data")
+                    return
                 '''
                 for layer in self.local_model.model.layers:
                     print("Local Model***************Layer Weight : ", [np.std(x) for x in layer.get_weights()])
