@@ -11,7 +11,7 @@ services:
     volumes:
       - ./demo:/home/demo
       - ./data/node-1:/home/work/p2plib/cmd/flat/data
-      - ./data/keras-preload:/root/.keras/datasets
+      - ./data/node-1/keras-preload:/root/.keras/datasets
     ports:
       - "8080:5000"
     environment:
@@ -28,7 +28,7 @@ services:
     volumes:
       - ./demo:/home/demo
       - ./data/node-2:/home/work/p2plib/cmd/flat/data
-      - ./data/keras-preload:/root/.keras/datasets
+      - ./data/node-2/keras-preload:/root/.keras/datasets
     environment:
       - NODE_ID=2
       - GROUP_ID=1
@@ -45,7 +45,7 @@ services:
     volumes:
       - ./demo:/home/demo
       - ./data/node-3:/home/work/p2plib/cmd/flat/data
-      - ./data/keras-preload:/root/.keras/datasets
+      - ./data/node-3/keras-preload:/root/.keras/datasets
     environment:
       - NODE_ID=3
       - GROUP_ID=1
@@ -62,7 +62,7 @@ services:
     volumes:
       - ./demo:/home/demo
       - ./data/node-4:/home/work/p2plib/cmd/flat/data
-      - ./data/keras-preload:/root/.keras/datasets
+      - ./data/node-4/keras-preload:/root/.keras/datasets
     environment:
       - NODE_ID=4
       - GROUP_ID=1
@@ -80,7 +80,7 @@ services:
     volumes:
       - ./demo:/home/demo
       - ./data/node-5:/home/work/p2plib/cmd/flat/data
-      - ./data/keras-preload:/root/.keras/datasets
+      - ./data/node-5/keras-preload:/root/.keras/datasets
     environment:
       - NODE_ID=5
       - GROUP_ID=2
@@ -98,7 +98,7 @@ services:
     volumes:
       - ./demo:/home/demo
       - ./data/node-6:/home/work/p2plib/cmd/flat/data
-      - ./data/keras-preload:/root/.keras/datasets
+      - ./data/node-6/keras-preload:/root/.keras/datasets
     environment:
       - NODE_ID=6
       - GROUP_ID=2
