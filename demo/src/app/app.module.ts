@@ -12,10 +12,12 @@ import {MatButtonModule} from "@angular/material/button";
 import {MatTabsModule} from "@angular/material/tabs";
 import {HttpClientModule} from "@angular/common/http";
 import {MatProgressSpinnerModule} from "@angular/material/progress-spinner";
+import { NodevizComponent } from './nodeviz/nodeviz.component';
 
 @NgModule({
   declarations: [
-    AppComponent
+    AppComponent,
+    NodevizComponent
   ],
   imports: [
     BrowserModule,
