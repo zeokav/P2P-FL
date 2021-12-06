@@ -60,7 +60,7 @@ def loadData(fname):
 
 
 class FLPeer:
-    MAX_DATASET_SIZE_KEPT = 1200
+    # MAX_DATASET_SIZE_KEPT = 4000
     def __init__(self, global_model, host, port, bootstrap_address=None):
         self.all_ids = set()
         self.sorted_ids = []
@@ -105,8 +105,7 @@ class FLPeer:
                 my_class_distr = loadData("data/my_class_distr")
             else:
                 fake_data, my_class_distr = self.datasource.fake_non_iid_data(
-                    min_train=model_config['min_train_size'],
-                    max_train=FLPeer.MAX_DATASET_SIZE_KEPT,
+                    train_size=model_config['train_size'],
                     data_split=model_config['data_split']
                 )
                 storeData("fake_data",fake_data)
@@ -123,10 +122,10 @@ class FLPeer:
                     "round": 1,
                     'model_json': self.global_model.model.to_json(),
                     'model_id': self.model_id,
-                    'min_train_size': 1200,
+                    'train_size': 20000,
                     'data_split': (0.6, 0.3, 0.1), # train, test, valid
-                    'epoch_per_round': 5,
-                    'batch_size': 20,
+                    'epoch_per_round': 2,
+                    'batch_size': 16,
                     'weights': self.global_model.current_weights
                 }
                 metadata_str = obj_to_pickle_string(metadata)
@@ -486,6 +485,16 @@ class GlobalModel_CIFAR10_initial(GlobalModel):
         from keras.layers import Dense, Dropout, Flatten
         from keras.layers import Conv2D, MaxPooling2D
 
+        # model = Sequential()
+        # model.add(Conv2D(32, (3, 3), activation='relu', input_shape=(32, 32, 3)))
+        # model.add(MaxPooling2D((2, 2)))
+        # model.add(Conv2D(64, (3, 3), activation='relu'))
+        # model.add(MaxPooling2D((2, 2)))
+        # model.add(Conv2D(64, (3, 3), activation='relu'))
+        # model.add(Flatten())
+        # model.add(Dense(64, activation='relu'))
+        # model.add(Dense(10))
+
         model = Sequential()
         model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same', input_shape=(32, 32, 3)))
         model.add(Conv2D(32, (3, 3), activation='relu', kernel_initializer='he_uniform', padding='same'))
@@ -502,12 +511,18 @@ class GlobalModel_CIFAR10_initial(GlobalModel):
         model.add(Flatten())
         model.add(Dense(128, activation='relu', kernel_initializer='he_uniform'))
         model.add(Dropout(0.2))
-        model.add(Dense(10, activation='softmax'))
-        print(model)
+        model.add(Dense(10))
+        # print(model)
         # """
-        import tensorflow.keras as keras
-        model.compile(loss=keras.losses.categorical_crossentropy,
-                      optimizer=keras.optimizers.Adadelta(),
+
+        # model.compile(loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+        #               optimizer=keras.optimizers.Adadelta(),
+        #               metrics=['accuracy'])
+
+        # fast_adam = keras.optimizers.Adam(learning_rate=0.001)
+
+        model.compile(loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+                      optimizer='adam',
                       metrics=['accuracy'])
         return model
 
@@ -523,23 +538,32 @@ class LocalModel(object):
             # 'batch_size'
         self.model_config = model_config
 
-        from keras.models import model_from_json
+        from tensorflow.keras.models import model_from_json
         self.model = model_from_json(model_config['model_json'])
         # the weights will be initialized on first pull from server
 
         import tensorflow.keras as keras
-        self.model.compile(loss=keras.losses.categorical_crossentropy,
-              optimizer=keras.optimizers.Adadelta(),
-              metrics=['accuracy'])
+        # fast_adam = keras.optimizers.Adam(learning_rate=0.001)
+        
+        self.model.compile(loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+                      optimizer='adam',
+                      metrics=['accuracy'])
 
         train_data, test_data, valid_data = data_collected
         import numpy as np
-        self.x_train = np.array([tup[0] for tup in train_data])
-        self.y_train = np.array([tup[1] for tup in train_data])
-        self.x_test = np.array([tup[0] for tup in test_data])
-        self.y_test = np.array([tup[1] for tup in test_data])
-        self.x_valid = np.array([tup[0] for tup in valid_data])
-        self.y_valid = np.array([tup[1] for tup in valid_data])
+        # self.x_train = np.array([tup[0] for tup in train_data])
+        # self.y_train = np.array([tup[1] for tup in train_data])
+        # self.x_test = np.array([tup[0] for tup in test_data])
+        # self.y_test = np.array([tup[1] for tup in test_data])
+        # self.x_valid = np.array([tup[0] for tup in valid_data])
+        # self.y_valid = np.array([tup[1] for tup in valid_data])
+
+        self.x_train = train_data[0]
+        self.y_train = train_data[1]
+        self.x_test = test_data[0]
+        self.y_test = test_data[1]
+        self.x_valid = valid_data[0]
+        self.y_valid = valid_data[1]
 
     def get_weights(self):
         return self.model.get_weights()
@@ -551,10 +575,15 @@ class LocalModel(object):
     def train_one_round(self):
         import tensorflow.keras as keras
         import numpy as np
-        self.model.compile(loss=keras.losses.categorical_crossentropy,
-              optimizer=keras.optimizers.Adadelta(),
+        # fast_adam = keras.optimizers.Adam(learning_rate=0.01)
+
+        # print(self.model.summary())
+        self.model.compile(loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+              optimizer='adam',
               metrics=['accuracy'])
-        
+
+        # print(f"{np.mean(np.mean(self.x_train, axis=0),axis=0)=}")
+
         self.model.fit(self.x_train, self.y_train,
                   epochs=self.model_config['epoch_per_round'],
                   batch_size=self.model_config['batch_size'],
@@ -566,6 +595,7 @@ class LocalModel(object):
         print('Train accuracy:', score[1])
         self.model.save('model')
         return self.model.get_weights(), score[0], score[1]
+
 
     def validate(self):
         score = self.model.evaluate(self.x_valid, self.y_valid, verbose=0)
