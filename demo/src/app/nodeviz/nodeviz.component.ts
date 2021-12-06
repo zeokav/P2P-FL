@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ViewEncapsulation } from '@angular/core'
 import {HttpClient} from "@angular/common/http";
+import {interval} from "rxjs";
 
 declare var Treant: any;
 
@@ -11,6 +12,8 @@ declare var Treant: any;
   styleUrls: ['./nodeviz.component.css']
 })
 export class NodevizComponent implements OnInit {
+
+  loading = true;
 
   constructor(private http: HttpClient) { }
 
@@ -51,19 +54,25 @@ export class NodevizComponent implements OnInit {
   };
 
   ngOnInit() {
-    this.http.get('http://localhost:8080/node_list').subscribe((data: Object) => {
-      // console.log("response:");
-      // console.log(data);
-      // var data2 = JSON.parse(data)
-      // a = data.branching
-      // b = data.node_list
-      // var dat = data || Object() ;
-      // dat["branching"] = 4;
-      // dat["nodes_list"] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-      (() => {
-        Treant([this.config].concat(this.create_tree_visualization(Object.values(data)[0], Object.values(data)[1])))
-      })();
-    });
+    interval(10000).subscribe(() => {
+      this.http.get('http://localhost:8080/node_list').subscribe((data: Object) => {
+        // console.log("response:");
+        // console.log(data);
+        // var data2 = JSON.parse(data)
+        // a = data.branching
+        // b = data.node_list
+        // var dat = data || Object() ;
+        // dat["branching"] = 4;
+        // dat["nodes_list"] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        this.loading = false;
+        (() => {
+          Treant([this.config].concat(this.create_tree_visualization(Object.values(data)[0], Object.values(data)[1])))
+        })();
+      }, err => {
+        this.loading = true;
+      });
+    })
+
 
     // this.create_tree_visualization(2, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     // this.create_tree_visualization(4, [0, 1, 2, 3, 4]);

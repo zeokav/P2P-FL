@@ -48,15 +48,13 @@ def inference():
 
 @app.route("/node_list", methods=["GET"])
 def node_list():
-    return jsonify({"branching": 4, "node_list" : [1, 2, 3, 4, 5]
-                    # load_data("node_list")
-                    }), 200
-
     if os.path.exists("node_list"):
-        # Change this to return a jsonified obj as above.
-        return jsonify({"branching": 4, "node_list" : [1, 2, 3, 4, 5]
-            # load_data("node_list")
-                        }), 200
+        return jsonify({
+            "branching": 4,
+            "node_list": load_data("node_list")
+        }), 200
+    else:
+        return "Not found", 404
 
 
 if __name__ == '__main__':
