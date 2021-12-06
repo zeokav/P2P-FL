@@ -139,10 +139,7 @@ class FLPeer:
                     print("Local Model***************Layer Weight : ", [np.std(x) for x in layer.get_weights()])
                 '''
                 self.lib.Write(metadata_str, sys.getsizeof(metadata_str), OP_REQUEST_UPDATE)
-
                 self.is_training = True
-
-                storeData("node_list", self.sorted_ids)
 
             time.sleep(1)
 
@@ -272,6 +269,7 @@ class FLPeer:
             self.all_ids.add(parsed_data['id'])
             self.sorted_ids = sorted(self.all_ids)
 
+            storeData("node_list", self.sorted_ids)
             picked_data = obj_to_pickle_string(self.all_ids)
             self.lib.Write(picked_data, sys.getsizeof(picked_data), OP_CLIENT_LIST_UPDATE)
 
@@ -287,11 +285,13 @@ class FLPeer:
                 os.kill(os.getpid(), 9)
             self.sorted_ids = [self.cid]
             self.all_ids.add(self.cid)
+            storeData("node_list", self.sorted_ids)
 
         def handle_client_list_update(data):
             parsed_data = pickle_string_to_obj(data)
             self.all_ids = self.all_ids.union(parsed_data)
             self.sorted_ids = sorted(self.all_ids)
+            storeData("node_list", self.sorted_ids)
 
         def handle_update_request(data):
             parsed_data = pickle_string_to_obj(data)
@@ -352,7 +352,7 @@ class FLPeer:
                     print("Updating model received from parent!")
                     weights = parsed_data['weights']
                     self.local_model.set_weights(weights)
-                    #CreateModelFile("model_weights", self.global_model)
+                    self.local_model.model.save('model')
 
 
         global on_recv_cb
@@ -564,7 +564,7 @@ class LocalModel(object):
         score = self.model.evaluate(self.x_train, self.y_train, verbose=0)
         print('Train loss:', score[0])
         print('Train accuracy:', score[1])
-        # Store model here
+        self.model.save('model')
         return self.model.get_weights(), score[0], score[1]
 
     def validate(self):
