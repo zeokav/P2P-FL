@@ -43,7 +43,7 @@ def inference():
 
     return jsonify({
         "predicted_class": class_list[max_ind],
-        "confidence": prediction[0].tolist()[max_ind] * 100
+        "confidence": prediction[0].tolist()[max_ind]
     }), 200
 
 
