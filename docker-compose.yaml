@@ -11,6 +11,7 @@ services:
     volumes:
       - ./demo:/home/demo
       - ./data/node-1:/home/work/p2plib/cmd/flat/data
+      - ./data/node-1/keras-preload:/root/.keras/datasets
     ports:
       - "8080:5000"
     environment:
@@ -21,16 +22,13 @@ services:
       commnet:
         ipv4_address: 172.20.0.2
     restart: on-failure
-#    deploy:
-#      resources:
-#        limits:
-#          memory: 1G
 
   node_2:
     image: "p2p-fl:latest"
     volumes:
       - ./demo:/home/demo
       - ./data/node-2:/home/work/p2plib/cmd/flat/data
+      - ./data/node-2/keras-preload:/root/.keras/datasets
     environment:
       - NODE_ID=2
       - GROUP_ID=1
@@ -41,16 +39,13 @@ services:
     restart: on-failure
     depends_on:
       - node_1
-#    deploy:
-#      resources:
-#        limits:
-#          memory: 1G
-#
+
   node_3:
     image: "p2p-fl:latest"
     volumes:
       - ./demo:/home/demo
       - ./data/node-3:/home/work/p2plib/cmd/flat/data
+      - ./data/node-3/keras-preload:/root/.keras/datasets
     environment:
       - NODE_ID=3
       - GROUP_ID=1
@@ -61,16 +56,13 @@ services:
     restart: on-failure
     depends_on:
       - node_2
-#    deploy:
-#      resources:
-#        limits:
-#          memory: 1G
 
   node_4:
     image: "p2p-fl:latest"
     volumes:
       - ./demo:/home/demo
       - ./data/node-4:/home/work/p2plib/cmd/flat/data
+      - ./data/node-4/keras-preload:/root/.keras/datasets
     environment:
       - NODE_ID=4
       - GROUP_ID=1
@@ -81,11 +73,6 @@ services:
     restart: on-failure
     depends_on:
       - node_3
-#    deploy:
-#      resources:
-#        limits:
-#          memory: 1G
-
 
   node_5:
     image: "p2p-fl:latest"
@@ -93,6 +80,7 @@ services:
     volumes:
       - ./demo:/home/demo
       - ./data/node-5:/home/work/p2plib/cmd/flat/data
+      - ./data/node-5/keras-preload:/root/.keras/datasets
     environment:
       - NODE_ID=5
       - GROUP_ID=2
@@ -103,10 +91,6 @@ services:
     restart: on-failure
     depends_on:
       - node_4
-#    deploy:
-#      resources:
-#        limits:
-#          memory: 1G
 
   node_6:
     image: "p2p-fl:latest"
@@ -114,6 +98,7 @@ services:
     volumes:
       - ./demo:/home/demo
       - ./data/node-6:/home/work/p2plib/cmd/flat/data
+      - ./data/node-6/keras-preload:/root/.keras/datasets
     environment:
       - NODE_ID=6
       - GROUP_ID=2
@@ -124,7 +109,3 @@ services:
     restart: on-failure
     depends_on:
       - node_5
-#    deploy:
-#      resources:
-#        limits:
-#          memory: 1G
