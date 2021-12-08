@@ -1,49 +1,34 @@
-# P2P Federated learning
+# P2P Federated learning with multi-tiered architecture
 
 ## Overview
-The plan is to run a number of "peers" on one system, and integrate learning with peers on other systems.  
+The plan is to run a number of "peers" on one system, train them individually and share knowledge across the swarm of containers.
+We explore the performance of such a system with different peer configurations.
 
-## Development Setup
-For development, make sure you're not using the global python. To create a virtual environment, run:`python3 -m venv venv`
+## Deliverables
+We work on top of the p2plib shared by [James Bae](https://github.com/theued) to create a peer-to-peer aware application (currently closed-source). 
+- Demo UI code in demo/
+- Demo server code in src/server.py
+- Application code in src/p2plib/cmd/flat/fl_peer.py (along with changes in flat.go)
+- Evaluation docker environment set up using the dockerfile and docker-compose.yaml
+- PPT in ./Group11.FinalReport.pptx
 
-Once you have this, you can load the project up in any IDE and choose this directory for the interpreter binary.
-
-When you're working, always switch to this environment: `source ./venv/bin/activate`
-
-## Adding/Restoring Deps For Easier Local Dev
-Before you start developing, after switching into the virtual environment, please run `pip3 install -r requirements.txt` to install any dependencies required. 
-
-If you end up adding any deps when developing locally, make sure to save it before creating the docker containers: `pip3 freeze > requirements.txt` 
-
-## Running
+## Running the code
 Execute `./run.sh`. This will:
 - Build the image, and setup the python env inside the image.
-- Create entries in the IP table to interface with the created containers.
-- Run the image as 5 different containers and these will be externally visible.
+- Create a docker-internal network for communication across nodes. Also volume mount required dirs on the containers. 
+- Run the image as 6 different containers (acting as 6 peers) joining the same network incrementally.
+- Start the container with fl_peer.py running at startup. Other peers will discover any container that joins in.
+- Run the flask server for interaction on one of the nodes. 
 
-#Accessing the Docker
-Once the docker is created, follow these steps to access any container in the docker.
+## Accessing the Docker container
+Once the container is created, follow these steps to access any container in the docker.
 - sudo docker container ls - lists the containers with their ids in the docker
-- sudo docker exec -it container_id bash
+- sudo docker exec -it <container_id> bash
 You will have access to the container now. The source code is present in /home/work.
 
-Running Centralized Federated Learning Example (single docker node)- 
-
-Run server
-Go to home/work/p2plib/cmd/flat directory
-python3 fl_server.py 127.0.0.1 9004
-
-Run client 1
-Open a new terminal and access the same docker using sudo docker exec -it container_id bash (make sure you give the same container_id as the server)
-Go to home/work/p2plib/cmd/flat directory
-python3 fl_client.py 127.0.0.1 9005 127.0.0.1:9004
-
-Run client 2
-Open a new terminal and access the same docker using sudo docker exec -it container_id bash (make sure you give the same container_id as the server and client1)
-Go to home/work/p2plib/cmd/flat directory
-python3 fl_client.py 127.0.0.1 9006 127.0.0.1:9004
-
-## Repo Layout
-- /src: This will contain the learning and peer-to-peer code. 
-- /demo: This will contain an inference python file which will load the combined model, run it on files in /in/{nodeId}, save results in /out/{nodeId}
-- /data: Each node's specific training data will be inside /data/{nodeId}
+# External open source code and other tools used 
+- For spinning up the environment, we rely on docker: https://www.docker.com/
+- All model training and evaluation is done using the tensorflow library (using Keras abstraction): https://www.tensorflow.org/
+- Dataset used for evaluation is CIFAR-10: https://www.cs.toronto.edu/~kriz/cifar.html
+- For the demo, we wrote the UI in angular (https://angular.io/) and the backend using Flask (https://flask.palletsprojects.com/en/2.0.x/)
+- The application layer for the p2p nodes was written in Python (https://www.python.org/)
