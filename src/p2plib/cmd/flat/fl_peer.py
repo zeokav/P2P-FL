@@ -115,7 +115,7 @@ class FLPeer:
 
     def run_trainer(self):
         while not self.shut_down:
-            if len(self.all_ids) >= 11 and self.sorted_ids[0] == self.cid and not self.is_training:
+            if len(self.all_ids) >= 6 and self.sorted_ids[0] == self.cid and not self.is_training:
                 print("Initializing training on: ", self.cid)
                 global last_started
                 if last_started == 0:
