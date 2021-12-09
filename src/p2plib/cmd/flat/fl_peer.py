@@ -43,7 +43,7 @@ on_self_up_cb = None
 on_client_list_update_cb = None
 on_request_update_cb = None
 on_client_update_cb = None
-
+last_started = 0
 
 def storeData(fname, data):
     # Its important to use binary mode
@@ -117,6 +117,13 @@ class FLPeer:
         while not self.shut_down:
             if len(self.all_ids) >= 11 and self.sorted_ids[0] == self.cid and not self.is_training:
                 print("Initializing training on: ", self.cid)
+                global last_started
+                if last_started == 0:
+                    last_started = int(time.time())
+                else:
+                    print("Time taken: {}".format(int(time.time()) - last_started))
+                    last_started = int(time.time())
+
                 metadata = {
                     "op": "request_update",
                     "round": 1,
