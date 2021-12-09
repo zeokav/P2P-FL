@@ -100,22 +100,22 @@ class FLPeer:
     def on_init(self, data):
             model_config = pickle_string_to_obj(data)
             
-            if os.path.exists("data/fake_data") and os.path.exists("data/my_class_distr"):
-                fake_data = loadData("data/fake_data")
-                my_class_distr = loadData("data/my_class_distr")
+            if os.path.exists("fake_data") and os.path.exists("my_class_distr"):
+                fake_data = loadData("fake_data")
+                my_class_distr = loadData("my_class_distr")
             else:
                 fake_data, my_class_distr = self.datasource.fake_non_iid_data(
                     train_size=model_config['train_size'],
                     data_split=model_config['data_split']
                 )
-                storeData("fake_data",fake_data)
-                storeData("my_class_distr",my_class_distr)
+                #storeData("fake_data",fake_data)
+                #storeData("my_class_distr",my_class_distr)
 
             self.local_model = LocalModel(model_config, fake_data)
 
     def run_trainer(self):
         while not self.shut_down:
-            if len(self.all_ids) >= 6 and self.sorted_ids[0] == self.cid and not self.is_training:
+            if len(self.all_ids) >= 11 and self.sorted_ids[0] == self.cid and not self.is_training:
                 print("Initializing training on: ", self.cid)
                 metadata = {
                     "op": "request_update",
@@ -124,7 +124,7 @@ class FLPeer:
                     'model_id': self.model_id,
                     'train_size': 20000,
                     'data_split': (0.6, 0.3, 0.1), # train, test, valid
-                    'epoch_per_round': 2,
+                    'epoch_per_round': 10,
                     'batch_size': 16,
                     'weights': self.global_model.current_weights
                 }
@@ -351,7 +351,7 @@ class FLPeer:
                     print("Updating model received from parent!")
                     weights = parsed_data['weights']
                     self.local_model.set_weights(weights)
-                    self.local_model.model.save('model')
+                    #self.local_model.model.save('model')
 
 
         global on_recv_cb
