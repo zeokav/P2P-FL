@@ -115,7 +115,7 @@ class FLPeer:
 
     def run_trainer(self):
         while not self.shut_down:
-            if len(self.all_ids) >= 6 and self.sorted_ids[0] == self.cid and not self.is_training:
+            if len(self.all_ids) >= 9 and self.sorted_ids[0] == self.cid and not self.is_training:
                 print("Initializing training on: ", self.cid)
                 global last_started
                 if last_started == 0:
@@ -129,9 +129,9 @@ class FLPeer:
                     "round": 1,
                     'model_json': self.global_model.model.to_json(),
                     'model_id': self.model_id,
-                    'train_size': 20000,
+                    'train_size': 1000,
                     'data_split': (0.6, 0.3, 0.1), # train, test, valid
-                    'epoch_per_round': 10,
+                    'epoch_per_round': 1,
                     'batch_size': 16,
                     'weights': self.global_model.current_weights
                 }
@@ -166,10 +166,13 @@ class FLPeer:
         round_parent_indices = [index for index in range(len(self.all_ids)) if index % (4 ** tree_round) == 0]
 
         if self_idx in round_parent_indices:
+            if self_idx == round_parent_indices[-1] and self_idx + (4 ** (tree_round-1)) >= len(self.sorted_ids):
+                print("Last parent with no children to wait for!")
+                return
+
             # This is the parent, it just waits for other nodes to send their weights
             print("This is a parent, waiting for other nodes to send their data")
             self.is_training = True
-
         else:
             if self_idx % (4 ** (tree_round - 1)) != 0:
                 print("Not participating in round {}".format(tree_round))
@@ -229,7 +232,7 @@ class FLPeer:
 
         if self.sorted_ids[0] == self.cid:
             curr_count = self.round_counter.get(for_round, 0)
-            self.round_counter[for_round] = curr_count + min(3, (len(self.sorted_ids) // (4 ** (for_round-1))))
+            self.round_counter[for_round] = curr_count + 1
             self.do_leader_round_completion_check(for_round)
         else:
             self.is_training = False
@@ -237,8 +240,7 @@ class FLPeer:
 
     def do_leader_round_completion_check(self, curr_round):
         curr_count = self.round_counter.get(curr_round)
-        completion_count = (len(self.sorted_ids) // (4 ** (curr_round - 1))) \
-                           - (len(self.sorted_ids) // (4 ** curr_round)) - 1
+        completion_count = ((len(self.sorted_ids)-1) // (4 ** curr_round))
 
         print("Received ack from child for round {}, total required: {}. Round count: {}"
               .format(curr_round, completion_count, self.round_counter))
