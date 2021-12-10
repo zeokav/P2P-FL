@@ -168,6 +168,9 @@ class FLPeer:
         if self_idx in round_parent_indices:
             if self_idx == round_parent_indices[-1] and self_idx + (4 ** (tree_round-1)) >= len(self.sorted_ids):
                 print("Last parent with no children to wait for!")
+                if tree_round == 1:
+                    my_weights, self.train_loss, self.train_accuracy = self.local_model.train_one_round()
+                    self.global_model.current_weights = my_weights
                 return
 
             # This is the parent, it just waits for other nodes to send their weights
