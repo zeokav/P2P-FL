@@ -220,7 +220,7 @@ class FLPeer:
                 [x['valid_size'] for x in self.current_round_client_updates],
                 for_round
             )
-
+	
         data = {
             "mode": "send_to_children",
             "targets": targets,
@@ -234,6 +234,7 @@ class FLPeer:
             curr_count = self.round_counter.get(for_round, 0)
             self.round_counter[for_round] = curr_count + 1
             self.do_leader_round_completion_check(for_round)
+            self.current_round_client_updates = []
         else:
             self.is_training = False
             self.current_round_client_updates = []
