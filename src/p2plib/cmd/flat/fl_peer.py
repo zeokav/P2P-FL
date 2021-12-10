@@ -43,7 +43,7 @@ on_self_up_cb = None
 on_client_list_update_cb = None
 on_request_update_cb = None
 on_client_update_cb = None
-
+last_started = 0
 
 def storeData(fname, data):
     # Its important to use binary mode
@@ -68,7 +68,7 @@ class FLPeer:
         self.cid = None
         self.shut_down = False
         self.is_training = False
-        self.current_round_client_updates = []
+        self.current_round_client_updates = {}
         self.round_counter = {}
 
         self.lib = cdll.LoadLibrary('./libp2p.so')
@@ -100,16 +100,16 @@ class FLPeer:
     def on_init(self, data):
             model_config = pickle_string_to_obj(data)
             
-            if os.path.exists("data/fake_data") and os.path.exists("data/my_class_distr"):
-                fake_data = loadData("data/fake_data")
-                my_class_distr = loadData("data/my_class_distr")
+            if os.path.exists("fake_data") and os.path.exists("my_class_distr"):
+                fake_data = loadData("fake_data")
+                my_class_distr = loadData("my_class_distr")
             else:
                 fake_data, my_class_distr = self.datasource.fake_non_iid_data(
                     train_size=model_config['train_size'],
                     data_split=model_config['data_split']
                 )
-                storeData("fake_data",fake_data)
-                storeData("my_class_distr",my_class_distr)
+                #storeData("fake_data",fake_data)
+                #storeData("my_class_distr",my_class_distr)
 
             self.local_model = LocalModel(model_config, fake_data)
 
@@ -117,6 +117,13 @@ class FLPeer:
         while not self.shut_down:
             if len(self.all_ids) >= 6 and self.sorted_ids[0] == self.cid and not self.is_training:
                 print("Initializing training on: ", self.cid)
+                global last_started
+                if last_started == 0:
+                    last_started = int(time.time())
+                else:
+                    print("Time taken: {}".format(int(time.time()) - last_started))
+                    last_started = int(time.time())
+
                 metadata = {
                     "op": "request_update",
                     "round": 1,
@@ -124,7 +131,7 @@ class FLPeer:
                     'model_id': self.model_id,
                     'train_size': 20000,
                     'data_split': (0.6, 0.3, 0.1), # train, test, valid
-                    'epoch_per_round': 2,
+                    'epoch_per_round': 5,
                     'batch_size': 16,
                     'weights': self.global_model.current_weights
                 }
@@ -159,10 +166,16 @@ class FLPeer:
         round_parent_indices = [index for index in range(len(self.all_ids)) if index % (4 ** tree_round) == 0]
 
         if self_idx in round_parent_indices:
+            if self_idx == round_parent_indices[-1] and self_idx + (4 ** (tree_round-1)) >= len(self.sorted_ids):
+                print("Last parent with no children to wait for!")
+                if tree_round == 1:
+                    my_weights, self.train_loss, self.train_accuracy = self.local_model.train_one_round()
+                    self.global_model.current_weights = my_weights
+                return
+
             # This is the parent, it just waits for other nodes to send their weights
             print("This is a parent, waiting for other nodes to send their data")
             self.is_training = True
-
         else:
             if self_idx % (4 ** (tree_round - 1)) != 0:
                 print("Not participating in round {}".format(tree_round))
@@ -174,7 +187,7 @@ class FLPeer:
                 if tree_round == 1:
                     my_weights, self.train_loss, self.train_accuracy = self.local_model.train_one_round()
                 else:
-                    my_weights = self.global_model.current_weights
+                    my_weights = self.global_model.current_weights  
                 
                 metadata = {
                     "mode": "send_to_leader",
@@ -192,25 +205,25 @@ class FLPeer:
 
     def process_and_clear(self, targets, for_round):
         print("{} : Processing weight information".format(self.cid))
-        print("Aggregating Weights for {} nodes".format(len(self.current_round_client_updates)))
+        print("Aggregating Weights for {} nodes".format(len(self.current_round_client_updates[for_round])))
         self.global_model.update_weights(
-                        [x['weights'] for x in self.current_round_client_updates],
-                        [x['train_size'] for x in self.current_round_client_updates],
+                        [x['weights'] for x in self.current_round_client_updates[for_round]],
+                        [x['train_size'] for x in self.current_round_client_updates[for_round]],
                     )
         aggr_train_loss, aggr_train_accuracy = self.global_model.aggregate_train_loss_accuracy(
-            [x['train_loss'] for x in self.current_round_client_updates],
-            [x['train_accuracy'] for x in self.current_round_client_updates],
-            [x['train_size'] for x in self.current_round_client_updates],
+            [x['train_loss'] for x in self.current_round_client_updates[for_round]],
+            [x['train_accuracy'] for x in self.current_round_client_updates[for_round]],
+            [x['train_size'] for x in self.current_round_client_updates[for_round]],
             for_round
         )
-        if 'valid_loss' in self.current_round_client_updates[0]:
+        if 'valid_loss' in self.current_round_client_updates[for_round][0]:
             aggr_valid_loss, aggr_valid_accuracy = self.global_model.aggregate_valid_loss_accuracy(
-                [x['valid_loss'] for x in self.current_round_client_updates],
-                [x['valid_accuracy'] for x in self.current_round_client_updates],
-                [x['valid_size'] for x in self.current_round_client_updates],
+                [x['valid_loss'] for x in self.current_round_client_updates[for_round]],
+                [x['valid_accuracy'] for x in self.current_round_client_updates[for_round]],
+                [x['valid_size'] for x in self.current_round_client_updates[for_round]],
                 for_round
             )
-
+	
         data = {
             "mode": "send_to_children",
             "targets": targets,
@@ -222,16 +235,15 @@ class FLPeer:
 
         if self.sorted_ids[0] == self.cid:
             curr_count = self.round_counter.get(for_round, 0)
-            self.round_counter[for_round] = curr_count + min(3, (len(self.sorted_ids) // (4 ** (for_round-1))))
+            self.round_counter[for_round] = curr_count + 1
             self.do_leader_round_completion_check(for_round)
         else:
             self.is_training = False
-            self.current_round_client_updates = []
+            self.current_round_client_updates[for_round] = []
 
     def do_leader_round_completion_check(self, curr_round):
         curr_count = self.round_counter.get(curr_round)
-        completion_count = (len(self.sorted_ids) // (4 ** (curr_round - 1))) \
-                           - (len(self.sorted_ids) // (4 ** curr_round)) - 1
+        completion_count = ((len(self.sorted_ids)-1) // (4 ** curr_round))
 
         print("Received ack from child for round {}, total required: {}. Round count: {}"
               .format(curr_round, completion_count, self.round_counter))
@@ -254,7 +266,7 @@ class FLPeer:
             else:
                 print("No more rounds left.")
                 self.is_training = False
-                self.current_round_client_updates = []
+                self.current_round_client_updates = {}
                 self.round_counter = {}
 
     def register_handles(self):
@@ -309,14 +321,15 @@ class FLPeer:
             if parsed_data.get('mode') == "send_to_leader":
                 if not parsed_data.get('target_bucket_peer_id') == self.cid:
                     return
-
-                self.current_round_client_updates.append(parsed_data)
+                curr_round = parsed_data['round']
+                self.current_round_client_updates[curr_round] = self.current_round_client_updates.get(curr_round, [])
+                self.current_round_client_updates[curr_round].append(parsed_data)
 
                 self_idx = self.sorted_ids.index(self.cid)
                 targets = self.sorted_ids[self_idx::(4 ** (parsed_data['round'] - 1))]
                 expected_weights = min(len(targets)-1, 3)
 
-                if len(self.current_round_client_updates) >= expected_weights:
+                if len(self.current_round_client_updates[curr_round]) >= expected_weights:
                     self.local_model.set_weights(self.global_model.current_weights)
                     curr_round = parsed_data['round']
                     
@@ -335,7 +348,7 @@ class FLPeer:
                         "train_loss": self.train_loss,
                         "train_accuracy": self.train_accuracy
                     }
-                    self.current_round_client_updates.append(metadata)
+                    self.current_round_client_updates[curr_round].append(metadata)
                     self.process_and_clear(targets[self_idx:expected_weights], parsed_data['round'])
 
             elif parsed_data.get('mode') == "send_to_children": 
