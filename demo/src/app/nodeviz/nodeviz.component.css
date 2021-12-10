@@ -2,7 +2,7 @@
 /* .Treant se automatski dodaje na svaki chart conatiner */
 .Treant { position: relative; overflow: hidden; padding: 0 !important; }
 .Treant > .node,
-.Treant > .pseudo { position: absolute; display: block; background-color: #3f51b5; width: 50px; height: 50px; border-radius: 25px; text-align: center; color: white; margin: auto; padding-top: 10px}
+.Treant > .pseudo { position: absolute; display: block; background-color: #3f51b5; width: 100px; height: 50px; border-radius: 25px; text-align: center; color: white; margin: auto; padding-top: 10px}
 .Treant.Treant-loaded .node,
 .Treant.Treant-loaded .pseudo { visibility: visible; }
 .Treant > .pseudo { width: 0; height: 0; border: none; padding: 0; }
