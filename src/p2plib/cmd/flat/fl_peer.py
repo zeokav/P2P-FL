@@ -115,7 +115,7 @@ class FLPeer:
 
     def run_trainer(self):
         while not self.shut_down:
-            if len(self.all_ids) >= 22 and self.sorted_ids[0] == self.cid and not self.is_training:
+            if len(self.all_ids) >= 15 and self.sorted_ids[0] == self.cid and not self.is_training:
                 print("Initializing training on: ", self.cid)
                 global last_started
                 if last_started == 0:
@@ -131,7 +131,7 @@ class FLPeer:
                     'model_id': self.model_id,
                     'train_size': 20000,
                     'data_split': (0.6, 0.3, 0.1), # train, test, valid
-                    'epoch_per_round': 5,
+                    'epoch_per_round': 2,
                     'batch_size': 16,
                     'weights': self.global_model.current_weights
                 }
