@@ -187,7 +187,7 @@ class FLPeer:
                 if tree_round == 1:
                     my_weights, self.train_loss, self.train_accuracy = self.local_model.train_one_round()
                 else:
-                    my_weights = self.global_model.current_weights
+                    my_weights = self.global_model.current_weights  
                 
                 metadata = {
                     "mode": "send_to_leader",
@@ -236,7 +236,6 @@ class FLPeer:
         if self.sorted_ids[0] == self.cid:
             curr_count = self.round_counter.get(for_round, 0)
             self.round_counter[for_round] = curr_count + 1
-            self.current_round_client_updates[for_round] = []
             self.do_leader_round_completion_check(for_round)
         else:
             self.is_training = False
