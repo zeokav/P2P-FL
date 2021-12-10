@@ -236,11 +236,11 @@ class FLPeer:
         if self.sorted_ids[0] == self.cid:
             curr_count = self.round_counter.get(for_round, 0)
             self.round_counter[for_round] = curr_count + 1
-            self.current_round_client_updates = {}
+            self.current_round_client_updates[for_round] = []
             self.do_leader_round_completion_check(for_round)
         else:
             self.is_training = False
-            self.current_round_client_updates = {}
+            self.current_round_client_updates[for_round] = []
 
     def do_leader_round_completion_check(self, curr_round):
         curr_count = self.round_counter.get(curr_round)
