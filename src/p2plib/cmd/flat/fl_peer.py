@@ -322,7 +322,7 @@ class FLPeer:
             if parsed_data.get('mode') == "send_to_leader":
                 if not parsed_data.get('target_bucket_peer_id') == self.cid:
                     return
-
+                curr_round = parsed_data['round']
                 self.current_round_client_updates[curr_round].append(parsed_data)
 
                 self_idx = self.sorted_ids.index(self.cid)
