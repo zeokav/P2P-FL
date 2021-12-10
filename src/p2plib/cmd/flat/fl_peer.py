@@ -129,7 +129,7 @@ class FLPeer:
                     "round": 1,
                     'model_json': self.global_model.model.to_json(),
                     'model_id': self.model_id,
-                    'train_size': 1000,
+                    'train_size': 20000,
                     'data_split': (0.6, 0.3, 0.1), # train, test, valid
                     'epoch_per_round': 1,
                     'batch_size': 16,
