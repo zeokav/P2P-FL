@@ -131,7 +131,7 @@ class FLPeer:
                     'model_id': self.model_id,
                     'train_size': 20000,
                     'data_split': (0.6, 0.3, 0.1), # train, test, valid
-                    'epoch_per_round': 2,
+                    'epoch_per_round': 5,
                     'batch_size': 16,
                     'weights': self.global_model.current_weights
                 }
@@ -364,7 +364,7 @@ class FLPeer:
                     print("Updating model received from parent!")
                     weights = parsed_data['weights']
                     self.local_model.set_weights(weights)
-                    #self.local_model.model.save('model')
+                    self.local_model.model.save('model')
 
 
         global on_recv_cb
@@ -606,7 +606,7 @@ class LocalModel(object):
         score = self.model.evaluate(self.x_train, self.y_train, verbose=0)
         print('Train loss:', score[0])
         print('Train accuracy:', score[1])
-        #self.model.save('model')
+        self.model.save('model')
         return self.model.get_weights(), score[0], score[1]
 
 
