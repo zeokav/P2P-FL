@@ -13,14 +13,6 @@ We work on top of the p2plib shared by [James Bae](https://github.com/theued) to
 - PPT in ./Group11.FinalReport.pptx
 
 ## Running the code
-### To quickly bring up an environment and run the code on docker
-Execute `./run.sh`. This will:
-- Build the image, and setup the python env inside the image.
-- Create a docker-internal network for communication across nodes. Also volume mount required dirs on the containers. 
-- Run the image as 6 different containers (acting as 6 peers) joining the same network incrementally.
-- Start the container with fl_peer.py running at startup. Other peers will discover any container that joins in.
-- Run the flask server for interaction on one of the nodes. 
-
 ### To run on bare metal
 First the python environment must be set up. To do this, go to the /pre folder. Run the two shell files:
 ```shell
@@ -63,6 +55,13 @@ npm start
 # Navigate to localhost:4200 in chrome
 ```
 
+### To quickly bring up an environment and run the code on docker
+Execute `./run.sh`. This will:
+- Build the image, and setup the python env inside the image.
+- Create a docker-internal network for communication across nodes. Also volume mount required dirs on the containers. 
+- Run the image as 6 different containers (acting as 6 peers) joining the same network incrementally.
+- Start the container with fl_peer.py running at startup. Other peers will discover any container that joins in.
+- Run the flask server for interaction on one of the nodes. 
 
 ## Accessing the Docker container
 Once the container is created, follow these steps to access any container in the docker.
